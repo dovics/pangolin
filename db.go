@@ -5,7 +5,6 @@ type DB struct {
 }
 
 func OpenDB(UUID string) (*DB, error) {
-
 	return &DB{
 		UUID,
 	}, nil
