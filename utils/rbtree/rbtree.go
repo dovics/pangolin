@@ -27,7 +27,7 @@ func Black(node *TreeNode) {
 }
 
 type TreeNode struct {
-	key    uint64
+	key    int64
 	left   *TreeNode
 	right  *TreeNode
 	parent *TreeNode
@@ -47,7 +47,7 @@ func New() *Tree {
 	}
 }
 
-func (t *Tree) Find(key uint64) *TreeNode {
+func (t *Tree) Find(key int64) *TreeNode {
 	temp := t.root
 	for temp != nil {
 		if temp.key == key {
@@ -66,7 +66,7 @@ func (t *Tree) Find(key uint64) *TreeNode {
 	return nil
 }
 
-func (t *Tree) Insert(key uint64, data interface{}) {
+func (t *Tree) Insert(key int64, data interface{}) {
 	root := t.root
 	sentinal := t.sentinal
 
@@ -132,7 +132,7 @@ func (t *Tree) Insert(key uint64, data interface{}) {
 	Black(root)
 }
 
-func (t *Tree) Delete(key uint64) {
+func (t *Tree) Delete(key int64) {
 	node := t.Find(key)
 	if node == nil {
 		return
@@ -274,7 +274,7 @@ func (t *Tree) Delete(key uint64) {
 	Black(temp)
 }
 
-func (t *Tree) insertNode(key uint64, data interface{}) *TreeNode {
+func (t *Tree) insertNode(key int64, data interface{}) *TreeNode {
 	var p **TreeNode
 	temp := t.root
 

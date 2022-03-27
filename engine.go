@@ -6,10 +6,12 @@ import (
 
 var (
 	enginesMu sync.RWMutex
-	engines   = make(map[string]func() Engine)
+	engines   = make(map[string]NewEngineFunc)
 )
 
-func Register(name string, f func() Engine) {
+type NewEngineFunc func(option interface{}) (Engine, error)
+
+func Register(name string, f NewEngineFunc) {
 	enginesMu.Lock()
 	defer enginesMu.Unlock()
 	if f == nil {
@@ -24,7 +26,7 @@ func Register(name string, f func() Engine) {
 }
 
 type Entry struct {
-	Key   uint64
+	Key   int64
 	Value interface{}
 	Size  uint64
 

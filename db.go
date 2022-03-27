@@ -13,19 +13,13 @@ type Option struct {
 	WorkDir string
 	engine  string
 
-	CompressEnable     bool
-	MaxMemtableSize    int64
-	MaxCompactFileSize int64
+	engineOption interface{}
 }
 
 func DefaultOption(uuid string) *Option {
 	return &Option{
-		UUID:               uuid,
-		WorkDir:            "./lsm",
-		engine:             "lsm",
-		CompressEnable:     true,
-		MaxMemtableSize:    1024,
-		MaxCompactFileSize: 1024,
+		UUID:   uuid,
+		engine: "lsm",
 	}
 }
 
@@ -51,14 +45,19 @@ func OpenDB(option *Option) (*DB, error) {
 		return nil, err
 	}
 
+	engine, err := engines[option.engine](option.engineOption)
+	if err != nil {
+		return nil, err
+	}
+
 	return &DB{
 		option,
 		UUID,
-		engines[option.engine](),
+		engine,
 	}, nil
 }
 
-func (db *DB) Insert(time uint64, value interface{}) error {
+func (db *DB) Insert(time int64, value interface{}) error {
 	size := uint64(unsafe.Sizeof(value))
 	return db.engine.Insert(&Entry{Key: time, Value: value, Size: size})
 }

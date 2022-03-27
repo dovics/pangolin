@@ -7,8 +7,8 @@ import (
 func TestInsertAndDelete(t *testing.T) {
 	tree := New()
 
-	m := uint64(0)
-	n := uint64(1000)
+	m := int64(0)
+	n := int64(1000)
 	for m < n {
 		tree.Insert(m, m)
 		m++
