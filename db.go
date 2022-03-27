@@ -2,16 +2,14 @@ package db
 
 import (
 	"errors"
-	"os"
-	"unsafe"
+	"reflect"
 
 	"github.com/google/uuid"
 )
 
 type Option struct {
-	UUID    string
-	WorkDir string
-	engine  string
+	UUID   string
+	engine string
 
 	engineOption interface{}
 }
@@ -41,10 +39,6 @@ func OpenDB(option *Option) (*DB, error) {
 		return nil, errors.New("please provide the correct uuid")
 	}
 
-	if err := os.MkdirAll(option.WorkDir, 0750); err != nil {
-		return nil, err
-	}
-
 	engine, err := engines[option.engine](option.engineOption)
 	if err != nil {
 		return nil, err
@@ -58,11 +52,24 @@ func OpenDB(option *Option) (*DB, error) {
 }
 
 func (db *DB) Insert(time int64, value interface{}) error {
-	size := uint64(unsafe.Sizeof(value))
-	return db.engine.Insert(&Entry{Key: time, Value: value, Size: size})
+	var t ValueType
+	switch reflect.TypeOf(value).Kind() {
+	case reflect.Int, reflect.Int64:
+		t = IntType
+	case reflect.Float32, reflect.Float64:
+		t = FloatType
+	default:
+		t = StringType
+	}
+
+	return db.engine.Insert(&Entry{Key: time, Value: value, Type: t})
 }
 
 func (db *DB) InsertEntry(e *Entry) error {
+	if e.Value == nil {
+		return errors.New("value can't be nil")
+	}
+
 	return db.engine.Insert(e)
 }
 

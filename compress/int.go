@@ -22,6 +22,7 @@ package compress
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"github.com/jwilder/encoding/simple8b"
@@ -44,8 +45,8 @@ type IntegerEncoder struct {
 }
 
 // NewIntegerEncoder returns a new integer encoder with an initial buffer of values sized at sz.
-func NewIntegerEncoder(sz int) IntegerEncoder {
-	return IntegerEncoder{
+func NewIntegerEncoder(sz int) *IntegerEncoder {
+	return &IntegerEncoder{
 		rle:    true,
 		values: make([]uint64, 0, sz),
 	}
@@ -62,7 +63,11 @@ func (e *IntegerEncoder) Reset() {
 }
 
 // Write encodes v to the underlying buffers.
-func (e *IntegerEncoder) Write(v int64) {
+func (e *IntegerEncoder) Write(value interface{}) error {
+	v, ok := value.(int64)
+	if !ok {
+		return errors.New("integerEncoder wrong type")
+	}
 	// Delta-encode each value as it's written.  This happens before
 	// ZigZagEncoding because the deltas could be negative.
 	delta := v - e.prev
@@ -73,6 +78,7 @@ func (e *IntegerEncoder) Write(v int64) {
 	}
 
 	e.values = append(e.values, enc)
+	return nil
 }
 
 // Bytes returns a copy of the underlying buffer.

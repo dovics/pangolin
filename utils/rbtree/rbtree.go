@@ -35,6 +35,10 @@ type TreeNode struct {
 	data   interface{}
 }
 
+func (n *TreeNode) GetKey() int64 {
+	return n.key
+}
+
 func (n *TreeNode) GetValue() interface{} {
 	return n.data
 }
@@ -352,6 +356,19 @@ func (t *Tree) rightRotate(node *TreeNode) {
 func (t *Tree) min(node *TreeNode) *TreeNode {
 	for node.left != t.sentinal {
 		node = node.left
+	}
+
+	return node
+}
+
+func (t *Tree) Min() *TreeNode {
+	return t.min(t.root)
+}
+
+func (t *Tree) Max() *TreeNode {
+	node := t.root
+	for node.right != t.sentinal {
+		node = node.right
 	}
 
 	return node

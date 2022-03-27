@@ -84,18 +84,23 @@ func (s *FloatEncoder) Flush() {
 }
 
 // Write encodes v to the underlying buffer.
-func (s *FloatEncoder) Write(v float64) {
+func (s *FloatEncoder) Write(value interface{}) error {
+	v, ok := value.(float64)
+	if !ok {
+		s.err = fmt.Errorf("floatEncoder wrong type")
+		return s.err
+	}
 	// Only allow NaN as a sentinel value
 	if math.IsNaN(v) && !s.finished {
 		s.err = fmt.Errorf("unsupported value: NaN")
-		return
+		return s.err
 	}
 	if s.first {
 		// first point
 		s.val = v
 		s.first = false
 		s.bw.WriteBits(math.Float64bits(v), 64)
-		return
+		return nil
 	}
 
 	vDelta := math.Float64bits(v) ^ math.Float64bits(s.val)
@@ -136,6 +141,7 @@ func (s *FloatEncoder) Write(v float64) {
 	}
 
 	s.val = v
+	return nil
 }
 
 // FloatDecoder decodes a byte slice into multiple float64 values.

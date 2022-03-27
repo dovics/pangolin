@@ -7,6 +7,7 @@ package compress
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 
 	"github.com/golang/snappy"
@@ -24,8 +25,8 @@ type StringEncoder struct {
 }
 
 // NewStringEncoder returns a new StringEncoder with an initial buffer ready to hold sz bytes.
-func NewStringEncoder(sz int) StringEncoder {
-	return StringEncoder{
+func NewStringEncoder(sz int) *StringEncoder {
+	return &StringEncoder{
 		bytes: make([]byte, 0, sz),
 	}
 }
@@ -39,7 +40,17 @@ func (e *StringEncoder) Reset() {
 }
 
 // Write encodes s to the underlying buffer.
-func (e *StringEncoder) Write(s string) {
+func (e *StringEncoder) Write(value interface{}) error {
+	s, ok := value.(string)
+	if !ok {
+		bytes, err := json.Marshal(value)
+		if err != nil {
+			return err
+		}
+
+		s = string(bytes)
+	}
+
 	b := make([]byte, 10)
 	// Append the length of the string using variable byte encoding
 	i := binary.PutUvarint(b, uint64(len(s)))
@@ -47,6 +58,7 @@ func (e *StringEncoder) Write(s string) {
 
 	// Append the string bytes
 	e.bytes = append(e.bytes, s...)
+	return nil
 }
 
 // Bytes returns a copy of the underlying buffer.
