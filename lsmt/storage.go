@@ -34,7 +34,6 @@ func init() {
 
 		for i := 0; i < int(db.TypeCount); i++ {
 			s.memtables[i] = make(map[string]*memtable)
-			s.memsize[i] = make(map[string]uint64)
 		}
 
 		return s, nil
@@ -60,7 +59,10 @@ type Storage struct {
 	option *Option
 
 	memtables [db.TypeCount]map[string]*memtable
-	memsize   [db.TypeCount]map[string]uint64
+	memsize   uint64
+
+	minKey int64
+	maxKey int64
 }
 
 func (s *Storage) Insert(e *db.Entry) error {
@@ -96,55 +98,60 @@ func (s *Storage) Insert(e *db.Entry) error {
 	}
 
 	table.Set(e.Key, e.Value)
-	s.memsize[e.Type][index] += e.Size()
-	return s.SaveToFileIfNeeded(e.Type, index)
+	s.memsize += e.Size()
+
+	if e.Key < s.minKey {
+		s.minKey = e.Key
+	}
+
+	if e.Key > s.maxKey {
+		s.maxKey = e.Key
+	}
+
+	return s.SaveToFileIfNeeded()
 }
 
-func (s *Storage) SaveToFileIfNeeded(t db.ValueType, index string) error {
-	if s.memsize[t][index] < s.option.MaxMemtableSize {
+func (s *Storage) SaveToFileIfNeeded() error {
+	if s.memsize < s.option.MaxMemtableSize {
 		return nil
 	}
 
-	table := s.memtables[t][index]
-	timeEncoder := compress.NewTimeEncoder(table.count)
-	valueEncoder := NewEncoder(t, table.count)
+	file, err := os.Create(filepath.Join(s.option.WorkDir,
+		strconv.FormatInt(s.minKey, 10)+"-"+strconv.FormatInt(s.maxKey, 10)))
+	if file != nil {
+		defer file.Close()
+	}
 
-	iter := rbtree.NewTreeIter(table.data)
-	for k, v := iter.Next(); iter.HasNext(); k, v = iter.Next() {
-		timeEncoder.Write(k)
-		if err := valueEncoder.Write(v); err != nil {
-			return err
+	if err != nil {
+		return err
+	}
+
+	totalOffsetBuffer := []uint32{}
+	totalLengthBuffer := []uint32{}
+	for t := 0; t < int(db.TypeCount); t++ {
+		offsetBuffer := make([]uint32, len(s.memtables[t]))
+		lengthBuffer := make([]uint32, len(s.memtables[t]))
+		currentOffset, i := uint32(0), 0
+		for _, table := range s.memtables[t] {
+			offsetBuffer[i] = currentOffset
+
+			length, err := table.Write(file)
+			if err != nil {
+				return err
+			}
+
+			lengthBuffer[i] = uint32(length)
+			currentOffset += lengthBuffer[i]
 		}
 
+		totalOffsetBuffer = append(totalOffsetBuffer, offsetBuffer...)
+		totalLengthBuffer = append(totalLengthBuffer, lengthBuffer...)
 	}
 
-	minKey, maxKey := table.data.Min().GetKey(), table.data.Max().GetKey()
-	file, err := os.Create(filepath.Join(s.option.WorkDir,
-		strconv.FormatInt(minKey, 10)+"-"+strconv.FormatInt(maxKey, 10)))
-	if err != nil {
+	if err := s.WriteHeader(file, totalOffsetBuffer, totalLengthBuffer); err != nil {
 		return err
 	}
 
-	timeData, err := timeEncoder.Bytes()
-	if err != nil {
-		return err
-	}
-
-	if _, err := file.Write(timeData); err != nil {
-		return err
-	}
-
-	valueData, err := valueEncoder.Bytes()
-	if err != nil {
-		return err
-	}
-
-	if _, err := file.Write(valueData); err != nil {
-		return err
-	}
-
-	delete(s.memsize[t], index)
-	delete(s.memtables[t], index)
 	return nil
 }
 
@@ -165,5 +172,25 @@ func NewEncoder(t db.ValueType, size int) Encoder {
 		return compress.NewStringEncoder(size)
 	default:
 		return compress.NewStringEncoder(size)
+	}
+}
+
+type Decoder interface {
+	SetBytes(b []byte) error
+	Next() bool
+	Read() interface{}
+	Error() error
+}
+
+func NewDecoder(t db.ValueType) Decoder {
+	switch t {
+	case db.IntType:
+		return &compress.IntegerDecoder{}
+	case db.FloatType:
+		return &compress.FloatDecoder{}
+	case db.StringType:
+		return &compress.StringDecoder{}
+	default:
+		return &compress.StringDecoder{}
 	}
 }

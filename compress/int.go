@@ -179,7 +179,7 @@ type IntegerDecoder struct {
 }
 
 // SetBytes sets the underlying byte slice of the decoder.
-func (d *IntegerDecoder) SetBytes(b []byte) {
+func (d *IntegerDecoder) SetBytes(b []byte) error {
 	if len(b) > 0 {
 		d.encoding = b[0] >> 4
 		d.bytes = b[1:]
@@ -196,6 +196,7 @@ func (d *IntegerDecoder) SetBytes(b []byte) {
 	d.rleFirst = 0
 	d.rleDelta = 0
 	d.err = nil
+	return nil
 }
 
 // Next returns true if there are any values remaining to be decoded.
@@ -227,7 +228,7 @@ func (d *IntegerDecoder) Error() error {
 }
 
 // Read returns the next value from the decoder.
-func (d *IntegerDecoder) Read() int64 {
+func (d *IntegerDecoder) Read() interface{} {
 	switch d.encoding {
 	case intCompressedRLE:
 		return ZigZagDecode(d.rleFirst) + int64(d.i)*ZigZagDecode(d.rleDelta)

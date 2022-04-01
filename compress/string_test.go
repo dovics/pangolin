@@ -113,7 +113,7 @@ func Test_StringEncoder_Quick(t *testing.T) {
 			if err := dec.Error(); err != nil {
 				t.Fatal(err)
 			}
-			got = append(got, dec.Read())
+			got = append(got, dec.Read().(string))
 		}
 
 		// Verify that input and output values match.

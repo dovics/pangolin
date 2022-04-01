@@ -110,7 +110,7 @@ func (e *StringDecoder) Next() bool {
 }
 
 // Read returns the next value from the decoder.
-func (e *StringDecoder) Read() string {
+func (e *StringDecoder) Read() interface{} {
 	// Read the length of the string
 	length, n := binary.Uvarint(e.b[e.i:])
 	if n <= 0 {

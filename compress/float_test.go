@@ -58,7 +58,7 @@ func TestFloatEncoder_Simple(t *testing.T) {
 		if !it.Next() {
 			t.Fatalf("Next()=false, want true")
 		}
-		vv := it.Values()
+		vv := it.Read().(float64)
 		if w != vv {
 			t.Errorf("Values()=(%v), want (%v)\n", vv, w)
 		}
@@ -104,7 +104,7 @@ func TestFloatEncoder_SimilarFloats(t *testing.T) {
 		if !it.Next() {
 			t.Fatalf("Next()=false, want true")
 		}
-		vv := it.Values()
+		vv := it.Read().(float64)
 		if w != vv {
 			t.Errorf("Values()=(%v), want (%v)\n", vv, w)
 		}
@@ -156,7 +156,7 @@ func TestFloatEncoder_Roundtrip(t *testing.T) {
 		if !it.Next() {
 			t.Fatalf("Next()=false, want true")
 		}
-		vv := it.Values()
+		vv := it.Read().(float64)
 		// t.Logf("it.Values()=(%+v, %+v)\n", time.Unix(int64(tt), 0), vv)
 		if w != vv {
 			t.Errorf("Values()=(%v), want (%v)\n", vv, w)
@@ -201,7 +201,7 @@ func TestFloatEncoder_Empty(t *testing.T) {
 
 	var got []float64
 	for dec.Next() {
-		got = append(got, dec.Values())
+		got = append(got, dec.Read().(float64))
 	}
 
 	if len(got) != 0 {
@@ -234,7 +234,7 @@ func Test_FloatEncoder_Quick(t *testing.T) {
 			t.Fatal(err)
 		}
 		for dec.Next() {
-			got = append(got, dec.Values())
+			got = append(got, dec.Read().(float64))
 		}
 
 		// Verify that input and output values match.
@@ -322,7 +322,7 @@ func BenchmarkFloatDecoder_DecodeAll(b *testing.B) {
 
 				i := 0
 				for it.Next() {
-					dst[i] = it.Values()
+					dst[i] = it.Read().(float64)
 					i++
 				}
 

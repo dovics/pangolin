@@ -276,7 +276,7 @@ func (it *FloatDecoder) Next() bool {
 }
 
 // Values returns the current float64 value.
-func (it *FloatDecoder) Values() float64 {
+func (it *FloatDecoder) Read() interface{} {
 	return math.Float64frombits(it.val)
 }
 

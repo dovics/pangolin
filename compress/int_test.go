@@ -540,7 +540,7 @@ func Test_IntegerEncoder_Quick(t *testing.T) {
 			if err := dec.Error(); err != nil {
 				t.Fatal(err)
 			}
-			got = append(got, dec.Read())
+			got = append(got, dec.Read().(int64))
 		}
 
 		// Verify that input and output values match.
@@ -644,7 +644,7 @@ func BenchmarkIntegerBatch_DecodeAllUncompressed(b *testing.B) {
 				dec.SetBytes(bytes)
 				var n int
 				for dec.Next() {
-					dst[n] = dec.Read()
+					dst[n] = dec.Read().(int64)
 					n++
 				}
 			}
@@ -681,7 +681,7 @@ func BenchmarkIntegerBatch_DecodeAllPackedSimple(b *testing.B) {
 				dec.SetBytes(bytes)
 				var n int
 				for dec.Next() {
-					dst[n] = dec.Read()
+					dst[n] = dec.Read().(int64)
 					n++
 				}
 			}
@@ -719,7 +719,7 @@ func BenchmarkIntegerBatch_DecodeAllRLE(b *testing.B) {
 				dec.SetBytes(bytes)
 				var n int
 				for dec.Next() {
-					dst[n] = dec.Read()
+					dst[n] = dec.Read().(int64)
 					n++
 				}
 			}
