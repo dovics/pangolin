@@ -126,29 +126,29 @@ func (s *Storage) SaveToFileIfNeeded() error {
 		return err
 	}
 
-	totalOffsetBuffer := []uint32{}
-	totalLengthBuffer := []uint32{}
+	indexes := []*Index{}
+	currentOffset := uint32(0)
 	for t := 0; t < int(db.TypeCount); t++ {
-		offsetBuffer := make([]uint32, len(s.memtables[t]))
-		lengthBuffer := make([]uint32, len(s.memtables[t]))
-		currentOffset, i := uint32(0), 0
-		for _, table := range s.memtables[t] {
-			offsetBuffer[i] = currentOffset
-
+		for index, table := range s.memtables[t] {
 			length, err := table.Write(file)
 			if err != nil {
 				return err
 			}
 
-			lengthBuffer[i] = uint32(length)
-			currentOffset += lengthBuffer[i]
+			indexes = append(indexes, &Index{
+				index:  index,
+				t:      table.valueType,
+				count:  uint32(table.count),
+				offset: currentOffset,
+				length: uint32(length),
+			})
+
+			currentOffset += uint32(length)
 		}
 
-		totalOffsetBuffer = append(totalOffsetBuffer, offsetBuffer...)
-		totalLengthBuffer = append(totalLengthBuffer, lengthBuffer...)
 	}
 
-	if err := s.WriteHeader(file, totalOffsetBuffer, totalLengthBuffer); err != nil {
+	if err := WriteHeader(file, indexes); err != nil {
 		return err
 	}
 

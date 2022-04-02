@@ -1,8 +1,10 @@
 package lsmt
 
 import (
+	"bytes"
 	"os"
-	"path"
+	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/dovics/db"
@@ -31,33 +33,35 @@ func newTestStorage() (*Storage, error) {
 	return s, nil
 }
 
-func TestWriteHeader(t *testing.T) {
-	s, err := newTestStorage()
+func TestHeader(t *testing.T) {
+	buffer := new(bytes.Buffer)
+
+	indexes := []*Index{}
+	for i := 0; i < 100; i++ {
+		indexes = append(indexes, &Index{
+			index:  "test" + strconv.Itoa(i),
+			t:      db.IntType,
+			count:  10,
+			max:    uint32(10 * (i + 1)),
+			min:    uint32(10 * i),
+			offset: uint32(100 * i),
+			length: 100,
+		})
+	}
+
+	if err := WriteHeader(buffer, indexes); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(buffer.Bytes())
+
+	newIndexes, err := ReadHeader(buffer)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	defer func() {
-		if err := os.RemoveAll(testOption.WorkDir); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	file, err := os.Create(path.Join(testOption.WorkDir, "temp"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer func() {
-		if err := file.Close(); err != nil {
-			t.Fatal(err)
-		}
-	}()
-
-	s.Insert(&db.Entry{Key: 1, Value: 1, Type: db.IntType, Tags: []string{"test"}})
-
-	if err := s.WriteHeader(file, []uint32{100}, []uint32{100}); err != nil {
-		t.Fatal(err)
+	if !reflect.DeepEqual(indexes, newIndexes) {
+		t.Errorf("expect equal, index length: %v, newIndexes length: %v", len(indexes), len(newIndexes))
 	}
 
 }

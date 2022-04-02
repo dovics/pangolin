@@ -26,6 +26,12 @@ func (m *memtable) Get(key int64) interface{} {
 	return m.data.Find(key).GetValue()
 }
 
+// +---------------+---------------+----------------+----------------+---------------+
+// |               |               |                |                |               |
+// |   valueType   |   timeLength  |     times      |   valueLength  |     values    |
+// |               |               |                |                |               |
+// +---------------+---------------+----------------+----------------+---------------+
+
 func (m *memtable) Write(w io.Writer) (int, error) {
 	buffer := make([]byte, 4)
 	binary.BigEndian.PutUint32(buffer, uint32(m.valueType))
@@ -42,7 +48,6 @@ func (m *memtable) Write(w io.Writer) (int, error) {
 		if err := valueEncoder.Write(v); err != nil {
 			return 0, err
 		}
-
 	}
 
 	timeData, err := timeEncoder.Bytes()
@@ -105,7 +110,7 @@ func Read(reader io.Reader) (*memtable, error) {
 		return nil, errors.New("no enough length")
 	}
 
-	timeDecoder.Init(buffer)
+	timeDecoder.Init(timeBuffer)
 
 	if n, err := reader.Read(buffer); err != nil {
 		return nil, err
@@ -125,5 +130,23 @@ func Read(reader io.Reader) (*memtable, error) {
 	decoder := NewDecoder(db.ValueType(valueType))
 	decoder.SetBytes(valueBuffer)
 
-	return nil, nil
+	tree := rbtree.New()
+	count := 0
+	for {
+		time := timeDecoder.Read()
+		value := decoder.Read()
+		tree.Insert(time, value)
+		count++
+
+		if !decoder.Next() || !timeDecoder.Next() {
+			break
+		}
+	}
+
+	return &memtable{
+		tree,
+		db.ValueType(valueType),
+		count,
+	}, nil
+
 }
