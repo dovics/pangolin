@@ -56,7 +56,6 @@ func (t *Tree) Find(key int64) *TreeNode {
 	for temp != nil {
 		if temp.key == key {
 			return temp
-
 		}
 
 		if temp.key < key {
@@ -68,6 +67,30 @@ func (t *Tree) Find(key int64) *TreeNode {
 	}
 
 	return nil
+}
+
+func (t *Tree) GetRange(start, end int64) []*TreeNode {
+	stack := []*TreeNode{t.root}
+	result := []*TreeNode{}
+	for len(stack) > 0 {
+		node := stack[0]
+		stack = stack[1:]
+
+		if node == nil {
+			continue
+		}
+
+		if node.key > end {
+			stack = append(stack, node.left)
+		} else if node.key < start {
+			stack = append(stack, node.right)
+		} else {
+			result = append(result, node)
+			stack = append(stack, node.left, node.right)
+		}
+	}
+
+	return result
 }
 
 func (t *Tree) Insert(key int64, data interface{}) {

@@ -9,7 +9,7 @@ import (
 	"github.com/dovics/db"
 )
 
-type Index struct {
+type index struct {
 	index  string
 	t      db.ValueType
 	count  uint32
@@ -19,7 +19,7 @@ type Index struct {
 	length uint32
 }
 
-func (i *Index) Bytes() []byte {
+func (i *index) bytes() []byte {
 	offset := 0
 	buffer := make([]byte, 28+len(i.index))
 	binary.BigEndian.PutUint32(buffer[offset:], uint32(len(i.index)))
@@ -49,9 +49,9 @@ func (i *Index) Bytes() []byte {
 	return buffer
 }
 
-func WriteHeader(w io.Writer, indexes []*Index) error {
+func writeHeader(w io.Writer, indexes []*index) error {
 	for _, index := range indexes {
-		if _, err := w.Write(index.Bytes()); err != nil {
+		if _, err := w.Write(index.bytes()); err != nil {
 			return err
 		}
 	}
@@ -59,27 +59,27 @@ func WriteHeader(w io.Writer, indexes []*Index) error {
 	return nil
 }
 
-func FindHeader(file *os.File) error {
-	if _, err := file.Seek(0, os.SEEK_END-4); err != nil {
+func findHeader(r io.ReadSeeker) error {
+	if _, err := r.Seek(0, os.SEEK_END-4); err != nil {
 		return err
 	}
 
 	buffer := make([]byte, 8)
-	if _, err := file.Read(buffer); err != nil {
+	if _, err := r.Read(buffer); err != nil {
 		return err
 	}
 
 	headerOffset := binary.BigEndian.Uint32(buffer)
 
-	if _, err := file.Seek(int64(headerOffset), os.SEEK_CUR); err != nil {
+	if _, err := r.Seek(int64(headerOffset), os.SEEK_CUR); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func ReadHeader(r io.Reader) ([]*Index, error) {
-	indexes := []*Index{}
+func readHeader(r io.Reader) ([]*index, error) {
+	indexes := []*index{}
 
 	var err error
 	buffer := make([]byte, 4)
@@ -97,7 +97,7 @@ func ReadHeader(r io.Reader) ([]*Index, error) {
 			break
 		}
 
-		index := &Index{index: string(indexBuffer)}
+		index := &index{index: string(indexBuffer)}
 
 		if _, err := r.Read(buffer); err != nil {
 			fmt.Print(3, err)

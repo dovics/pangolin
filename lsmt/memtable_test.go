@@ -9,21 +9,21 @@ import (
 )
 
 func TestMemtableBackup(t *testing.T) {
-	mt := &memtable{data: rbtree.New(), valueType: db.IntType}
+	mt := &memblock{data: rbtree.New(), valueType: db.IntType}
 
 	for i := int64(0); i < 10; i++ {
-		mt.Set(i, i)
+		mt.set(i, i)
 	}
 
 	buffer := new(bytes.Buffer)
 
-	if _, err := mt.Write(buffer); err != nil {
+	if _, err := mt.write(buffer); err != nil {
 		t.Fatal(err)
 	}
 
 	t.Log(buffer.Bytes())
 
-	newt, err := Read(buffer)
+	newt, err := read(buffer)
 	if err != nil {
 		t.Fatal(err)
 	}

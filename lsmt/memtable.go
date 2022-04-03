@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"sort"
+	"strings"
 
 	"github.com/dovics/db"
 	"github.com/dovics/db/compress"
@@ -11,19 +13,149 @@ import (
 )
 
 type memtable struct {
+	blocks [db.TypeCount]map[string]*memblock
+	size   uint64
+
+	minKey int64
+	maxKey int64
+}
+
+func NewMemtable() *memtable {
+	m := &memtable{minKey: -1, maxKey: -1}
+	for i := 0; i < int(db.TypeCount); i++ {
+		m.blocks[i] = make(map[string]*memblock)
+	}
+
+	return m
+}
+
+func (m *memtable) insert(e *db.Entry) error {
+	indexBuilder := &strings.Builder{}
+	sort.Strings(e.Tags)
+	for i, tag := range e.Tags {
+		indexBuilder.WriteString(tag)
+		if i != len(e.Tags)-1 {
+			indexBuilder.WriteRune(',')
+		}
+	}
+
+	index := indexBuilder.String()
+
+	table, ok := m.blocks[e.Type][index]
+	if !ok {
+		table = &memblock{data: rbtree.New(), count: 0}
+		m.blocks[e.Type][index] = table
+	}
+
+	table.set(e.Key, e.Value)
+	m.size += e.Size()
+
+	if m.minKey == -1 || e.Key < m.minKey {
+		m.minKey = e.Key
+	}
+
+	if m.maxKey == -1 || e.Key > m.maxKey {
+		m.maxKey = e.Key
+	}
+
+	return nil
+}
+
+func (m *memtable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([]interface{}, error) {
+	if endTime < m.minKey || startTime > m.maxKey {
+		return nil, nil
+	}
+
+	result := []interface{}{}
+	if filter.Type != db.UnknownType {
+		for i, block := range m.blocks[filter.Type] {
+			if !containTags(i, filter.Tags) {
+				continue
+			}
+
+			result = append(result, block.getRange(startTime, endTime)...)
+		}
+
+		return result, nil
+	}
+
+	for _, indexMap := range m.blocks {
+		for i, block := range indexMap {
+			if !containTags(i, filter.Tags) {
+				continue
+			}
+
+			result = append(result, block.getRange(startTime, endTime)...)
+		}
+	}
+
+	return result, nil
+}
+
+func containTags(index string, tags []string) bool {
+	for _, tag := range tags {
+		if !strings.Contains(index, tag) {
+			return false
+		}
+	}
+
+	return true
+}
+func (m *memtable) write(w io.Writer) error {
+	indexes := []*index{}
+	currentOffset := uint32(0)
+	for t := 0; t < int(db.TypeCount); t++ {
+		for i, table := range m.blocks[t] {
+			length, err := table.write(w)
+			if err != nil {
+				return err
+			}
+
+			indexes = append(indexes, &index{
+				index:  i,
+				t:      table.valueType,
+				count:  uint32(table.count),
+				offset: currentOffset,
+				length: uint32(length),
+			})
+
+			currentOffset += uint32(length)
+		}
+
+	}
+
+	if err := writeHeader(w, indexes); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type memblock struct {
 	data *rbtree.Tree
 
 	valueType db.ValueType
 	count     int
 }
 
-func (m *memtable) Set(key int64, value interface{}) {
+func (m *memblock) set(key int64, value interface{}) {
 	m.count++
 	m.data.Insert(key, value)
 }
 
-func (m *memtable) Get(key int64) interface{} {
+func (m *memblock) get(key int64) interface{} {
 	return m.data.Find(key).GetValue()
+}
+
+func (m *memblock) getRange(startTime, endTime int64) []interface{} {
+	nodes := m.data.GetRange(startTime, endTime)
+	result := make([]interface{}, len(nodes))
+
+	for i, node := range nodes {
+		result[i] = node.GetValue()
+	}
+
+	return result
 }
 
 // +---------------+---------------+----------------+----------------+---------------+
@@ -32,7 +164,7 @@ func (m *memtable) Get(key int64) interface{} {
 // |               |               |                |                |               |
 // +---------------+---------------+----------------+----------------+---------------+
 
-func (m *memtable) Write(w io.Writer) (int, error) {
+func (m *memblock) write(w io.Writer) (int, error) {
 	buffer := make([]byte, 4)
 	binary.BigEndian.PutUint32(buffer, uint32(m.valueType))
 	if _, err := w.Write(buffer); err != nil {
@@ -83,7 +215,7 @@ func (m *memtable) Write(w io.Writer) (int, error) {
 	return timeLength + valueLength, nil
 }
 
-func Read(reader io.Reader) (*memtable, error) {
+func read(reader io.Reader) (*memblock, error) {
 	buffer := make([]byte, 4)
 	if n, err := reader.Read(buffer); err != nil {
 		return nil, err
@@ -143,7 +275,7 @@ func Read(reader io.Reader) (*memtable, error) {
 		}
 	}
 
-	return &memtable{
+	return &memblock{
 		tree,
 		db.ValueType(valueType),
 		count,

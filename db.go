@@ -73,6 +73,7 @@ func (db *DB) InsertEntry(e *Entry) error {
 	return db.engine.Insert(e)
 }
 
-func (db *DB) GetRange(startTime, endTime uint64) ([][]byte, error) {
+func (db *DB) GetRange(startTime, endTime int64, filter *QueryFilter) ([]interface{}, error) {
+
 	return nil, nil
 }

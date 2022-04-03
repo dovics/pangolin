@@ -27,11 +27,15 @@ func Register(name string, f NewEngineFunc) {
 }
 
 type Entry struct {
-	Key    int64
-	Value  interface{}
-	Type   ValueType
-	Tags   []string
-	Lables map[string]string
+	Key   int64
+	Value interface{}
+	Type  ValueType
+	Tags  []string
+}
+
+type QueryFilter struct {
+	Type ValueType
+	Tags []string
 }
 
 type ValueType int
@@ -59,4 +63,5 @@ func (e *Entry) Size() uint64 {
 
 type Engine interface {
 	Insert(*Entry) error
+	GetRange(startTime, endTime int64, filter *QueryFilter) ([]interface{}, error)
 }

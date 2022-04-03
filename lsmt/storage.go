@@ -2,15 +2,14 @@ package lsmt
 
 import (
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
-	"strings"
+	"sync/atomic"
 
 	"github.com/dovics/db"
 	"github.com/dovics/db/compress"
-	"github.com/dovics/db/utils/rbtree"
 )
 
 func init() {
@@ -30,10 +29,7 @@ func init() {
 
 		s := &Storage{
 			option: option,
-		}
-
-		for i := 0; i < int(db.TypeCount); i++ {
-			s.memtables[i] = make(map[string]*memtable)
+			mem:    NewMemtable(),
 		}
 
 		return s, nil
@@ -43,116 +39,90 @@ func init() {
 type Option struct {
 	WorkDir string
 
-	CompressEnable     bool
-	MaxMemtableSize    uint64
-	MaxCompactFileSize int64
+	CompressEnable bool
+	MemtableSize   uint64
 }
 
 var defaultOption *Option = &Option{
-	WorkDir:            "./lsm",
-	CompressEnable:     true,
-	MaxMemtableSize:    1024,
-	MaxCompactFileSize: 1024,
+	WorkDir:        "./lsm",
+	CompressEnable: true,
+	MemtableSize:   1024,
 }
 
 type Storage struct {
 	option *Option
 
-	memtables [db.TypeCount]map[string]*memtable
-	memsize   uint64
+	isFlashing int32
+	flashTable *memtable
 
-	minKey int64
-	maxKey int64
+	mem *memtable
+
+	disk *disktable
+}
+
+type flashState struct {
+	table *memtable
+	file  *os.File
 }
 
 func (s *Storage) Insert(e *db.Entry) error {
-	indexBuilder := &strings.Builder{}
-	for i, tag := range e.Tags {
-		indexBuilder.WriteString(tag)
-		if i != len(e.Tags)-1 {
-			indexBuilder.WriteRune(',')
-		}
+	if err := s.mem.insert(e); err != nil {
+		return err
 	}
 
-	labels := make([]string, len(e.Lables))
-	i := 0
-	for key, value := range e.Lables {
-		labels[i] = key + "=" + value
-		i++
-	}
-
-	sort.Strings(labels)
-	for i, label := range labels {
-		indexBuilder.WriteString(label)
-		if i != len(labels)-1 {
-			indexBuilder.WriteRune(',')
-		}
-	}
-
-	index := indexBuilder.String()
-
-	table, ok := s.memtables[e.Type][index]
-	if !ok {
-		table = &memtable{data: rbtree.New(), count: 0}
-		s.memtables[e.Type][index] = table
-	}
-
-	table.Set(e.Key, e.Value)
-	s.memsize += e.Size()
-
-	if e.Key < s.minKey {
-		s.minKey = e.Key
-	}
-
-	if e.Key > s.maxKey {
-		s.maxKey = e.Key
-	}
-
-	return s.SaveToFileIfNeeded()
+	go s.saveToFileIfNeeded()
+	return nil
 }
 
-func (s *Storage) SaveToFileIfNeeded() error {
-	if s.memsize < s.option.MaxMemtableSize {
-		return nil
+func (s *Storage) GetRange(startTime, endTime int64, filter *db.QueryFilter) ([]interface{}, error) {
+	result := []interface{}{}
+
+	memResult, err := s.mem.getRange(startTime, endTime, filter)
+	if err != nil {
+		return nil, err
 	}
+
+	result = append(result, memResult...)
+
+	diskResult, err := s.disk.getRange(startTime, endTime, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	result = append(result, diskResult...)
+
+	return result, nil
+}
+
+func (s *Storage) saveToFileIfNeeded() {
+	if s.mem.size < s.option.MemtableSize {
+		return
+	}
+
+	if !atomic.CompareAndSwapInt32(&s.isFlashing, 0, 1) {
+		return
+	}
+
+	s.flashTable, s.mem = s.mem, NewMemtable()
 
 	file, err := os.Create(filepath.Join(s.option.WorkDir,
-		strconv.FormatInt(s.minKey, 10)+"-"+strconv.FormatInt(s.maxKey, 10)))
-	if file != nil {
-		defer file.Close()
-	}
-
+		strconv.FormatInt(s.flashTable.minKey, 10)+"-"+strconv.FormatInt(s.flashTable.maxKey, 10)))
 	if err != nil {
-		return err
+		log.Println("create file error: ", err)
 	}
 
-	indexes := []*Index{}
-	currentOffset := uint32(0)
-	for t := 0; t < int(db.TypeCount); t++ {
-		for index, table := range s.memtables[t] {
-			length, err := table.Write(file)
-			if err != nil {
-				return err
-			}
-
-			indexes = append(indexes, &Index{
-				index:  index,
-				t:      table.valueType,
-				count:  uint32(table.count),
-				offset: currentOffset,
-				length: uint32(length),
-			})
-
-			currentOffset += uint32(length)
-		}
-
+	if err := s.flashTable.write(file); err != nil {
+		log.Println("memtable write error: ", err)
 	}
 
-	if err := WriteHeader(file, indexes); err != nil {
-		return err
+	if err := file.Sync(); err != nil {
+		log.Println("file sync error", err)
+	}
+	if !atomic.CompareAndSwapInt32(&s.isFlashing, 1, 0) {
+		return
 	}
 
-	return nil
+	return
 }
 
 type Encoder interface {

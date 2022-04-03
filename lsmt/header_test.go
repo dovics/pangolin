@@ -2,7 +2,6 @@ package lsmt
 
 import (
 	"bytes"
-	"os"
 	"reflect"
 	"strconv"
 	"testing"
@@ -10,35 +9,12 @@ import (
 	"github.com/dovics/db"
 )
 
-var testOption *Option = &Option{
-	WorkDir:            "./lsm",
-	CompressEnable:     true,
-	MaxMemtableSize:    1024,
-	MaxCompactFileSize: 1024,
-}
-
-func newTestStorage() (*Storage, error) {
-	if err := os.Mkdir(testOption.WorkDir, 0750); err != nil {
-		return nil, err
-	}
-
-	s := &Storage{
-		option: testOption,
-	}
-
-	for i := 0; i < int(db.TypeCount); i++ {
-		s.memtables[i] = make(map[string]*memtable)
-	}
-
-	return s, nil
-}
-
 func TestHeader(t *testing.T) {
 	buffer := new(bytes.Buffer)
 
-	indexes := []*Index{}
+	indexes := []*index{}
 	for i := 0; i < 100; i++ {
-		indexes = append(indexes, &Index{
+		indexes = append(indexes, &index{
 			index:  "test" + strconv.Itoa(i),
 			t:      db.IntType,
 			count:  10,
@@ -49,13 +25,13 @@ func TestHeader(t *testing.T) {
 		})
 	}
 
-	if err := WriteHeader(buffer, indexes); err != nil {
+	if err := writeHeader(buffer, indexes); err != nil {
 		t.Fatal(err)
 	}
 
 	t.Log(buffer.Bytes())
 
-	newIndexes, err := ReadHeader(buffer)
+	newIndexes, err := readHeader(buffer)
 	if err != nil {
 		t.Fatal(err)
 	}
