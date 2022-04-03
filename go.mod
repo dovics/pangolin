@@ -10,3 +10,5 @@ require (
 	github.com/jwilder/encoding v0.0.0-20170811194829-b4e1701a28ef
 	golang.org/x/sys v0.0.0-20200923182605-d9f96fdee20d
 )
+
+require go.etcd.io/bbolt v1.3.6 // indirect

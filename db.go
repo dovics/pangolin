@@ -74,6 +74,9 @@ func (db *DB) InsertEntry(e *Entry) error {
 }
 
 func (db *DB) GetRange(startTime, endTime int64, filter *QueryFilter) ([]interface{}, error) {
+	return db.engine.GetRange(startTime, endTime, filter)
+}
 
-	return nil, nil
+func (db *DB) Engine() Engine {
+	return db.engine
 }

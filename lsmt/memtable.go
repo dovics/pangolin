@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"sort"
-	"strings"
 
 	"github.com/dovics/db"
 	"github.com/dovics/db/compress"
@@ -30,16 +28,7 @@ func NewMemtable() *memtable {
 }
 
 func (m *memtable) insert(e *db.Entry) error {
-	indexBuilder := &strings.Builder{}
-	sort.Strings(e.Tags)
-	for i, tag := range e.Tags {
-		indexBuilder.WriteString(tag)
-		if i != len(e.Tags)-1 {
-			indexBuilder.WriteRune(',')
-		}
-	}
-
-	index := indexBuilder.String()
+	index := e.Index()
 
 	table, ok := m.blocks[e.Type][index]
 	if !ok {
@@ -69,7 +58,7 @@ func (m *memtable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([
 	result := []interface{}{}
 	if filter.Type != db.UnknownType {
 		for i, block := range m.blocks[filter.Type] {
-			if !containTags(i, filter.Tags) {
+			if !db.ContainTags(i, filter.Tags) {
 				continue
 			}
 
@@ -81,7 +70,7 @@ func (m *memtable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([
 
 	for _, indexMap := range m.blocks {
 		for i, block := range indexMap {
-			if !containTags(i, filter.Tags) {
+			if !db.ContainTags(i, filter.Tags) {
 				continue
 			}
 
@@ -92,15 +81,6 @@ func (m *memtable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([
 	return result, nil
 }
 
-func containTags(index string, tags []string) bool {
-	for _, tag := range tags {
-		if !strings.Contains(index, tag) {
-			return false
-		}
-	}
-
-	return true
-}
 func (m *memtable) write(w io.Writer) error {
 	indexes := []*index{}
 	currentOffset := uint32(0)
