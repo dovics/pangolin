@@ -2,7 +2,6 @@ package lsmt
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"os"
 
@@ -13,8 +12,8 @@ type index struct {
 	index  string
 	t      db.ValueType
 	count  uint32
-	max    uint32
 	min    uint32
+	max    uint32
 	offset uint32
 	length uint32
 }
@@ -60,32 +59,38 @@ func writeHeader(w io.Writer, indexes []*index) error {
 }
 
 func findHeader(r io.ReadSeeker) error {
-	if _, err := r.Seek(0, os.SEEK_END-4); err != nil {
+	if _, err := r.Seek(0, os.SEEK_END); err != nil {
 		return err
 	}
 
-	buffer := make([]byte, 8)
+	if _, err := r.Seek(-4, os.SEEK_CUR); err != nil {
+		return err
+	}
+
+	buffer := make([]byte, 4)
 	if _, err := r.Read(buffer); err != nil {
 		return err
 	}
 
 	headerOffset := binary.BigEndian.Uint32(buffer)
 
-	if _, err := r.Seek(int64(headerOffset), os.SEEK_CUR); err != nil {
+	if _, err := r.Seek(int64(headerOffset), os.SEEK_SET); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func readHeader(r io.Reader) ([]*index, error) {
-	indexes := []*index{}
+func readHeader(r io.Reader) ([db.TypeCount]map[string]*index, error) {
+	indexes := [db.TypeCount]map[string]*index{}
+	for i := range indexes {
+		indexes[i] = make(map[string]*index)
+	}
 
 	var err error
 	buffer := make([]byte, 4)
 	for {
 		if _, err = r.Read(buffer); err != nil {
-			fmt.Print(1)
 			break
 		}
 
@@ -93,53 +98,46 @@ func readHeader(r io.Reader) ([]*index, error) {
 		indexBuffer := make([]byte, indexLength)
 
 		if _, err := r.Read(indexBuffer); err != nil {
-			fmt.Print(2)
 			break
 		}
 
 		index := &index{index: string(indexBuffer)}
 
 		if _, err := r.Read(buffer); err != nil {
-			fmt.Print(3, err)
 			break
 		}
 		index.t = db.ValueType(binary.BigEndian.Uint32(buffer))
 
 		if _, err := r.Read(buffer); err != nil {
-			fmt.Print(4)
 			break
 		}
 		index.count = binary.BigEndian.Uint32(buffer)
 
 		if _, err := r.Read(buffer); err != nil {
-			fmt.Print(5)
 			break
 		}
 		index.max = binary.BigEndian.Uint32(buffer)
 
 		if _, err := r.Read(buffer); err != nil {
-			fmt.Print(6)
 			break
 		}
 		index.min = binary.BigEndian.Uint32(buffer)
 
 		if _, err := r.Read(buffer); err != nil {
-			fmt.Print(7)
 			break
 		}
 		index.offset = binary.BigEndian.Uint32(buffer)
 
 		if _, err := r.Read(buffer); err != nil {
-			fmt.Print(8)
 			break
 		}
 		index.length = binary.BigEndian.Uint32(buffer)
 
-		indexes = append(indexes, index)
+		indexes[index.t][index.index] = index
 	}
 
 	if err != io.EOF {
-		return nil, err
+		return indexes, err
 	}
 
 	return indexes, nil

@@ -27,9 +27,15 @@ func init() {
 			return nil, err
 		}
 
+		dt, err := NewDiskTable(option.WorkDir)
+		if err != nil {
+			return nil, err
+		}
+
 		s := &Storage{
 			option: option,
 			mem:    NewMemtable(),
+			disk:   dt,
 		}
 
 		return s, nil
@@ -105,8 +111,9 @@ func (s *Storage) saveToFileIfNeeded() {
 
 	s.flashTable, s.mem = s.mem, NewMemtable()
 
-	file, err := os.Create(filepath.Join(s.option.WorkDir,
-		strconv.FormatInt(s.flashTable.minKey, 10)+"-"+strconv.FormatInt(s.flashTable.maxKey, 10)))
+	filePath := filepath.Join(s.option.WorkDir,
+		strconv.FormatInt(s.flashTable.minKey, 10)+"-"+strconv.FormatInt(s.flashTable.maxKey, 10))
+	file, err := os.Create(filePath)
 	if err != nil {
 		log.Println("create file error: ", err)
 	}
@@ -116,8 +123,13 @@ func (s *Storage) saveToFileIfNeeded() {
 	}
 
 	if err := file.Sync(); err != nil {
-		log.Println("file sync error", err)
+		log.Println("file sync error: ", err)
 	}
+
+	if err := s.disk.AddFile(filePath); err != nil {
+		log.Println("file add error: ", err)
+	}
+
 	if !atomic.CompareAndSwapInt32(&s.isFlashing, 1, 0) {
 		return
 	}

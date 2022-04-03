@@ -13,6 +13,13 @@ func TestHeader(t *testing.T) {
 	buffer := new(bytes.Buffer)
 
 	indexes := []*index{}
+	expectResult := [db.TypeCount]map[string]*index{
+		make(map[string]*index),
+		make(map[string]*index),
+		make(map[string]*index),
+		make(map[string]*index),
+	}
+
 	for i := 0; i < 100; i++ {
 		indexes = append(indexes, &index{
 			index:  "test" + strconv.Itoa(i),
@@ -25,19 +32,24 @@ func TestHeader(t *testing.T) {
 		})
 	}
 
+	for _, index := range indexes {
+		expectResult[index.t][index.index] = index
+	}
+
 	if err := writeHeader(buffer, indexes); err != nil {
 		t.Fatal(err)
 	}
 
 	t.Log(buffer.Bytes())
 
-	newIndexes, err := readHeader(buffer)
+	result, err := readHeader(buffer)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !reflect.DeepEqual(indexes, newIndexes) {
-		t.Errorf("expect equal, index length: %v, newIndexes length: %v", len(indexes), len(newIndexes))
+	if !reflect.DeepEqual(expectResult, result) {
+		t.Errorf("expect equal, expectResult: %v, result: %v", indexes, result)
 	}
 
+	t.Log(result)
 }
