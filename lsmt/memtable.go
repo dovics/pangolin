@@ -3,12 +3,14 @@ package lsmt
 import (
 	"encoding/binary"
 	"io"
+	"sync"
 
 	"github.com/dovics/db"
 	"github.com/dovics/db/utils/rbtree"
 )
 
 type memtable struct {
+	mutex  sync.RWMutex
 	blocks [db.TypeCount]map[string]*block
 	size   uint64
 
@@ -26,6 +28,9 @@ func NewMemtable() *memtable {
 }
 
 func (m *memtable) insert(e *db.Entry) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
 	index := e.Index()
 
 	table, ok := m.blocks[e.Type][index]
@@ -49,12 +54,15 @@ func (m *memtable) insert(e *db.Entry) error {
 }
 
 func (m *memtable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([]interface{}, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
 	if endTime < m.minKey || startTime > m.maxKey {
 		return nil, nil
 	}
 
 	result := []interface{}{}
-	if filter.Type != db.UnknownType {
+	if filter != nil && filter.Type != db.UnknownType {
 		for i, block := range m.blocks[filter.Type] {
 			if !db.ContainTags(i, filter.Tags) {
 				continue
@@ -68,7 +76,7 @@ func (m *memtable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([
 
 	for _, indexMap := range m.blocks {
 		for i, block := range indexMap {
-			if !db.ContainTags(i, filter.Tags) {
+			if filter != nil && !db.ContainTags(i, filter.Tags) {
 				continue
 			}
 
@@ -80,6 +88,9 @@ func (m *memtable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([
 }
 
 func (m *memtable) write(w io.Writer) error {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
 	indexes := []*index{}
 	currentOffset := uint32(0)
 	for t := 0; t < int(db.TypeCount); t++ {
@@ -93,8 +104,8 @@ func (m *memtable) write(w io.Writer) error {
 				index:  i,
 				t:      table.valueType,
 				count:  uint32(table.count),
-				min:    uint32(table.data.Min().GetKey()),
-				max:    uint32(table.data.Max().GetKey()),
+				min:    uint32(table.data.Min().(rbtree.TimestampItem).Time),
+				max:    uint32(table.data.Max().(rbtree.TimestampItem).Time),
 				offset: currentOffset,
 				length: uint32(length),
 			})

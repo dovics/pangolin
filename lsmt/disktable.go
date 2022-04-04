@@ -8,6 +8,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/dovics/db"
 )
@@ -17,8 +18,24 @@ func (s *Storage) ReadDiskTableMeta() {
 }
 
 type disktable struct {
+	mutex   sync.Mutex
 	workDir string
 	files   []*diskFile
+}
+
+func (d *disktable) Close() error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	for _, file := range d.files {
+		if file.data != nil {
+			if err := file.data.Close(); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func NewDiskTable(workDir string) (*disktable, error) {
@@ -62,7 +79,7 @@ type diskFile struct {
 	minKey int64
 	maxKey int64
 
-	data    io.ReadSeeker
+	data    io.ReadSeekCloser
 	indexes [db.TypeCount]map[string]*index
 }
 
@@ -81,6 +98,9 @@ func (d *disktable) Pop() interface{} {
 }
 
 func (d *disktable) AddFile(p string) error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
 	fileName := path.Base(p)
 	keyScope := strings.Split(fileName, "-")
 
@@ -100,6 +120,10 @@ func (d *disktable) AddFile(p string) error {
 }
 
 func (d *disktable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([]interface{}, error) {
+	fmt.Println(123123123)
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
 	result := []interface{}{}
 
 	for _, file := range d.files {

@@ -9,7 +9,7 @@ import (
 )
 
 var testOption *Option = &Option{
-	WorkDir:        "./lsm",
+	WorkDir:        "./test_lsm",
 	CompressEnable: true,
 	MemtableSize:   1024,
 }
@@ -33,11 +33,22 @@ func newTestStorage() (*Storage, error) {
 	return s, nil
 }
 
+func clean(s *Storage) {
+	if err := s.Close(); err != nil {
+		panic(err)
+	}
+
+	if err := os.RemoveAll(testOption.WorkDir); err != nil {
+		panic(err)
+	}
+}
+
 func TestStorage(t *testing.T) {
 	s, err := newTestStorage()
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer clean(s)
 
 	for i := int64(0); i < 1000; i++ {
 		err := s.Insert(&db.Entry{Key: i, Value: i, Type: db.IntType, Tags: []string{"test"}})

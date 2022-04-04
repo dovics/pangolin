@@ -66,9 +66,8 @@ type Storage struct {
 	disk *disktable
 }
 
-type flashState struct {
-	table *memtable
-	file  *os.File
+func (s *Storage) Close() error {
+	return s.disk.Close()
 }
 
 func (s *Storage) Insert(e *db.Entry) error {
@@ -89,6 +88,15 @@ func (s *Storage) GetRange(startTime, endTime int64, filter *db.QueryFilter) ([]
 	}
 
 	result = append(result, memResult...)
+
+	if s.flashTable != nil {
+		flashResult, err := s.flashTable.getRange(startTime, endTime, filter)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, flashResult...)
+	}
 
 	diskResult, err := s.disk.getRange(startTime, endTime, filter)
 	if err != nil {

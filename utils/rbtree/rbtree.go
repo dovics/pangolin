@@ -1,398 +1,421 @@
 package rbtree
 
+//
+// Red-Black tree properties:  http://en.wikipedia.org/wiki/Tree
+//
+//  1) A node is either red or black
+//  2) The root is black
+//  3) All leaves (NULL) are black
+//  4) Both children of every red node are black
+//  5) Every simple path from root to leaves contains the same number
+//     of black nodes.
+//
+
+// Node of the rbtree has a pointer of the node of parent, left, right, also has own color and Item which client uses
+type Node struct {
+	Left   *Node
+	Right  *Node
+	Parent *Node
+	Color  uint
+
+	// for use by client.
+	Item
+}
+
+const (
+	// RED represents the color of the node is red
+	RED = 0
+	// BLACK represents the color of the node is black
+	BLACK = 1
+)
+
+// Item has a method to compare items which is less
+type Item interface {
+	Less(than Item) bool
+}
+
+// Tree represents a Red-Black tree.
 type Tree struct {
-	root     *TreeNode
-	sentinal *TreeNode
+	sentinal *Node
+	root     *Node
+	count    uint
 }
 
-type Color bool
-
-const red Color = true
-const black Color = false
-
-func IsRed(node *TreeNode) bool {
-	return node.color == red
+func less(x, y Item) bool {
+	return x.Less(y)
 }
 
-func IsBlack(node *TreeNode) bool {
-	return node.color == black
-}
+// New returns an initialized Red-Black tree
+func New() *Tree { return new(Tree).Init() }
 
-func Red(node *TreeNode) {
-	node.color = red
-}
-
-func Black(node *TreeNode) {
-	node.color = black
-}
-
-type TreeNode struct {
-	key    int64
-	left   *TreeNode
-	right  *TreeNode
-	parent *TreeNode
-	color  Color
-	data   interface{}
-}
-
-func (n *TreeNode) GetKey() int64 {
-	return n.key
-}
-
-func (n *TreeNode) GetValue() interface{} {
-	return n.data
-}
-
-func New() *Tree {
-	sentinal := &TreeNode{}
+// Init returns the initial of rbtree
+func (t *Tree) Init() *Tree {
+	node := &Node{nil, nil, nil, BLACK, nil}
 	return &Tree{
-		root:     sentinal,
-		sentinal: sentinal,
+		sentinal: node,
+		root:     node,
+		count:    0,
 	}
 }
 
-func (t *Tree) Find(key int64) *TreeNode {
-	temp := t.root
-	for temp != nil {
-		if temp.key == key {
-			return temp
-		}
-
-		if temp.key < key {
-			temp = temp.right
-			continue
-		}
-
-		temp = temp.left
-	}
-
-	return nil
-}
-
-func (t *Tree) GetRange(start, end int64) []*TreeNode {
-	stack := []*TreeNode{t.root}
-	result := []*TreeNode{}
-	for len(stack) > 0 {
-		node := stack[0]
-		stack = stack[1:]
-
-		if node == nil {
-			continue
-		}
-
-		if node.key > end {
-			stack = append(stack, node.left)
-		} else if node.key < start {
-			stack = append(stack, node.right)
-		} else {
-			result = append(result, node)
-			stack = append(stack, node.left, node.right)
-		}
-	}
-
-	return result
-}
-
-func (t *Tree) Insert(key int64, data interface{}) {
-	root := t.root
-	sentinal := t.sentinal
-
-	if root == sentinal {
-		node := &TreeNode{
-			key:  key,
-			data: data,
-
-			parent: nil,
-			left:   sentinal,
-			right:  sentinal,
-			color:  black,
-		}
-
-		t.root = node
+func (t *Tree) leftRotate(x *Node) {
+	// Since we are doing the left rotation, the right child should *NOT* nil.
+	if x.Right == t.sentinal {
 		return
 	}
 
-	node := t.insertNode(key, data)
-
-	for node != t.root && IsRed(node.parent) {
-		if node.parent == node.parent.parent.left {
-			temp := node.parent.parent.right
-
-			if IsRed(temp) {
-				Black(node.parent)
-				Black(temp)
-				Red(node.parent.parent)
-				node = node.parent.parent
-				continue
-			}
-
-			if node == node.parent.right {
-				node = node.parent
-				t.leftRotate(node)
-			}
-
-			Black(node.parent)
-			Red(node.parent.parent)
-			t.rightRotate(node.parent.parent)
-			continue
-		} else {
-			temp := node.parent.parent.left
-
-			if IsRed(temp) {
-				Black(node.parent)
-				Black(temp)
-				Red(node.parent.parent)
-				node = node.parent.parent
-			} else {
-				if node == node.parent.left {
-					node = node.parent
-					t.rightRotate(node)
-				}
-
-				Black(node.parent)
-				Red(node.parent.parent)
-				t.leftRotate(node.parent.parent)
-			}
-		}
+	//
+	// The illation of left rotation
+	//
+	//          |                                  |
+	//          X                                  Y
+	//         / \         left rotate            / \
+	//        α  Y       ------------->         X   γ
+	//           / \                            / \
+	//          β  γ                         α  β
+	//
+	// It should be note that during the rotating we do not change
+	// the Nodes' color.
+	//
+	y := x.Right
+	x.Right = y.Left
+	if y.Left != t.sentinal {
+		y.Left.Parent = x
 	}
+	y.Parent = x.Parent
 
-	Black(root)
-}
-
-func (t *Tree) Delete(key int64) {
-	node := t.Find(key)
-	if node == nil {
-		return
-	}
-
-	var temp, subst *TreeNode
-	if node.left == t.sentinal {
-		temp = node.right
-		subst = node
-	} else if node.right == t.sentinal {
-		temp = node.left
-		subst = node
+	if x.Parent == t.sentinal {
+		t.root = y
+	} else if x == x.Parent.Left {
+		x.Parent.Left = y
 	} else {
-		subst = t.min(node.right)
-		temp = subst.right
+		x.Parent.Right = y
 	}
 
-	if subst == t.root {
-		t.root = temp
-		Black(temp)
-
-		node.left = nil
-		node.right = nil
-		node.parent = nil
-		node.key = 0
-
-		return
-	}
-
-	isRed := IsRed(subst)
-
-	if subst == subst.parent.left {
-		subst.parent.left = temp
-	} else {
-		subst.parent.right = temp
-	}
-
-	if subst == node {
-		temp.parent = subst.parent
-	} else {
-		if subst.parent == node {
-			temp.parent = subst
-		} else {
-			temp.parent = subst.parent
-		}
-
-		subst.left = node.left
-		subst.right = node.right
-		subst.parent = node.parent
-
-		subst.color = node.color
-
-		if node == t.root {
-			t.root = subst
-		} else {
-			if node == node.parent.left {
-				node.parent.left = subst
-			} else {
-				node.parent.right = subst
-			}
-		}
-
-		if subst.left != t.sentinal {
-			subst.left.parent = subst
-		}
-
-		if subst.right != t.sentinal {
-			subst.right.parent = subst
-		}
-	}
-
-	node.left = nil
-	node.right = nil
-	node.parent = nil
-	node.key = 0
-
-	if isRed {
-		return
-	}
-
-	for temp != t.root && IsBlack(temp) {
-		if temp == temp.parent.left {
-			w := temp.parent.right
-
-			if IsRed(w) {
-				Black(w)
-				Red(temp.parent)
-				t.leftRotate(temp.parent)
-				w = temp.parent.right
-			}
-
-			if IsBlack(w.left) && IsBlack(w.right) {
-				Red(w)
-				temp = temp.parent
-			} else {
-				if IsBlack(w.right) {
-					Black(w.left)
-					Red(w)
-					t.rightRotate(w)
-					w = temp.parent.right
-				}
-
-				w.color = temp.parent.color
-				Black(temp.parent)
-				Black(w.right)
-				t.leftRotate(temp.parent)
-				temp = t.root
-			}
-		} else {
-			w := temp.parent.left
-
-			if IsRed(w) {
-				Black(w)
-				Red(temp.parent)
-				t.rightRotate(temp.parent)
-				w = temp.parent.left
-			}
-
-			if IsBlack(w.left) && IsBlack(w.right) {
-				Red(w)
-				temp = temp.parent
-			} else {
-				if IsBlack(w.left) {
-					Black(w.right)
-					Red(w)
-					t.leftRotate(w)
-					w = temp.parent.left
-				}
-
-				w.color = temp.parent.color
-				Black(temp.parent)
-				Black(w.left)
-				t.rightRotate(temp.parent)
-				temp = t.root
-			}
-		}
-	}
-
-	Black(temp)
+	y.Left = x
+	x.Parent = y
 }
 
-func (t *Tree) insertNode(key int64, data interface{}) *TreeNode {
-	var p **TreeNode
-	temp := t.root
+func (t *Tree) rightRotate(x *Node) {
+	// Since we are doing the right rotation, the left child should *NOT* nil.
+	if x.Left == t.sentinal {
+		return
+	}
 
-	for {
-		if temp.key > key {
-			p = &temp.left
+	//
+	// The illation of right rotation
+	//
+	//          |                                  |
+	//          X                                  Y
+	//         / \         right rotate           / \
+	//        Y   γ      ------------->         α  X
+	//       / \                                    / \
+	//      α  β                                 β  γ
+	//
+	// It should be note that during the rotating we do not change
+	// the Nodes' color.
+	//
+	y := x.Left
+	x.Left = y.Right
+	if y.Right != t.sentinal {
+		y.Right.Parent = x
+	}
+	y.Parent = x.Parent
+
+	if x.Parent == t.sentinal {
+		t.root = y
+	} else if x == x.Parent.Left {
+		x.Parent.Left = y
+	} else {
+		x.Parent.Right = y
+	}
+
+	y.Right = x
+	x.Parent = y
+}
+
+func (t *Tree) insert(z *Node) *Node {
+	x := t.root
+	y := t.sentinal
+
+	for x != t.sentinal {
+		y = x
+		if less(z.Item, x.Item) {
+			x = x.Left
+		} else if less(x.Item, z.Item) {
+			x = x.Right
 		} else {
-			p = &temp.right
+			return x
 		}
+	}
 
-		if *p == t.sentinal {
+	z.Parent = y
+	if y == t.sentinal {
+		t.root = z
+	} else if less(z.Item, y.Item) {
+		y.Left = z
+	} else {
+		y.Right = z
+	}
+
+	t.count++
+	t.insertFixup(z)
+	return z
+}
+
+func (t *Tree) insertFixup(z *Node) {
+	for z.Parent.Color == RED {
+		//
+		// Howerver, we do not need the assertion of non-nil grandparent
+		// because
+		//
+		//  2) The root is black
+		//
+		// Since the color of the parent is RED, so the parent is not root
+		// and the grandparent must be exist.
+		//
+		if z.Parent == z.Parent.Parent.Left {
+			// Take y as the uncle, although it can be sentinal, in that case
+			// its color is BLACK
+			y := z.Parent.Parent.Right
+			if y.Color == RED {
+				//
+				// Case 1:
+				// Parent and uncle are both RED, the grandparent must be BLACK
+				// due to
+				//
+				//  4) Both children of every red node are black
+				//
+				// Since the current node and its parent are all RED, we still
+				// in violation of 4), So repaint both the parent and the uncle
+				// to BLACK and grandparent to RED(to maintain 5)
+				//
+				//  5) Every simple path from root to leaves contains the same
+				//     number of black nodes.
+				//
+				z.Parent.Color = BLACK
+				y.Color = BLACK
+				z.Parent.Parent.Color = RED
+				z = z.Parent.Parent
+			} else {
+				if z == z.Parent.Right {
+					//
+					// Case 2:
+					// Parent is RED and uncle is BLACK and the current node
+					// is right child
+					//
+					// A left rotation on the parent of the current node will
+					// switch the roles of each other. This still leaves us in
+					// violation of 4).
+					// The continuation into Case 3 will fix that.
+					//
+					z = z.Parent
+					t.leftRotate(z)
+				}
+				//
+				// Case 3:
+				// Parent is RED and uncle is BLACK and the current node is
+				// left child
+				//
+				// At the very beginning of Case 3, current node and parent are
+				// both RED, thus we violate 4).
+				// Repaint parent to BLACK will fix it, but 5) does not allow
+				// this because all paths that go through the parent will get
+				// 1 more black node. Then repaint grandparent to RED (as we
+				// discussed before, the grandparent is BLACK) and do a right
+				// rotation will fix that.
+				//
+				z.Parent.Color = BLACK
+				z.Parent.Parent.Color = RED
+				t.rightRotate(z.Parent.Parent)
+			}
+		} else { // same as then clause with "right" and "left" exchanged
+			y := z.Parent.Parent.Left
+			if y.Color == RED {
+				z.Parent.Color = BLACK
+				y.Color = BLACK
+				z.Parent.Parent.Color = RED
+				z = z.Parent.Parent
+			} else {
+				if z == z.Parent.Left {
+					z = z.Parent
+					t.rightRotate(z)
+				}
+				z.Parent.Color = BLACK
+				z.Parent.Parent.Color = RED
+				t.leftRotate(z.Parent.Parent)
+			}
+		}
+	}
+	t.root.Color = BLACK
+}
+
+// Just traverse the node from root to left recursively until left is sentinal.
+// The node whose left is sentinal is the node with minimum value.
+func (t *Tree) min(x *Node) *Node {
+	if x == t.sentinal {
+		return t.sentinal
+	}
+
+	for x.Left != t.sentinal {
+		x = x.Left
+	}
+
+	return x
+}
+
+// Just traverse the node from root to right recursively until right is sentinal.
+// The node whose right is sentinal is the node with maximum value.
+func (t *Tree) max(x *Node) *Node {
+	if x == t.sentinal {
+		return t.sentinal
+	}
+
+	for x.Right != t.sentinal {
+		x = x.Right
+	}
+
+	return x
+}
+
+func (t *Tree) search(x *Node) *Node {
+	p := t.root
+
+	for p != t.sentinal {
+		if less(p.Item, x.Item) {
+			p = p.Right
+		} else if less(x.Item, p.Item) {
+			p = p.Left
+		} else {
 			break
 		}
-
-		temp = *p
 	}
 
-	*p = &TreeNode{
-		key:  key,
-		data: data,
-
-		parent: temp,
-		left:   t.sentinal,
-		right:  t.sentinal,
-		color:  red,
-	}
-
-	return *p
+	return p
 }
 
-func (t *Tree) leftRotate(node *TreeNode) {
-	temp := node.right
-	node.right = temp.left
-
-	if temp.left != t.sentinal {
-		temp.left.parent = node
+//TODO: Need Document
+func (t *Tree) successor(x *Node) *Node {
+	if x == t.sentinal {
+		return t.sentinal
 	}
 
-	temp.parent = node.parent
+	// Get the minimum from the right sub-tree if it existed.
+	if x.Right != t.sentinal {
+		return t.min(x.Right)
+	}
 
-	if node == t.root {
-		t.root = temp
-	} else if node == node.parent.left {
-		node.parent.left = temp
+	y := x.Parent
+	for y != t.sentinal && x == y.Right {
+		x = y
+		y = y.Parent
+	}
+	return y
+}
+
+//TODO: Need Document
+func (t *Tree) delete(key *Node) *Node {
+	z := t.search(key)
+
+	if z == t.sentinal {
+		return t.sentinal
+	}
+	ret := &Node{t.sentinal, t.sentinal, t.sentinal, z.Color, z.Item}
+
+	var y *Node
+	var x *Node
+
+	if z.Left == t.sentinal || z.Right == t.sentinal {
+		y = z
 	} else {
-		node.parent.right = temp
+		y = t.successor(z)
 	}
 
-	temp.left = node
-	node.parent = temp
-}
-
-func (t *Tree) rightRotate(node *TreeNode) {
-	temp := node.left
-	node.left = temp.right
-
-	if temp.right != t.sentinal {
-		temp.right.parent = node
-	}
-
-	temp.parent = node.parent
-
-	if node == t.root {
-		t.root = temp
-	} else if node == node.parent.right {
-		node.parent.right = temp
+	if y.Left != t.sentinal {
+		x = y.Left
 	} else {
-		node.parent.left = temp
+		x = y.Right
 	}
 
-	temp.right = node
-	node.parent = temp
-}
+	// Even if x is sentinal, we do the assign. In that case all the sentinal nodes will
+	// change from {nil, nil, nil, BLACK, nil} to {nil, nil, ADDR, BLACK, nil},
+	// but do not worry about that because it will not affect the compare
+	// between Node-X with Node-sentinal
+	x.Parent = y.Parent
 
-func (t *Tree) min(node *TreeNode) *TreeNode {
-	for node.left != t.sentinal {
-		node = node.left
+	if y.Parent == t.sentinal {
+		t.root = x
+	} else if y == y.Parent.Left {
+		y.Parent.Left = x
+	} else {
+		y.Parent.Right = x
 	}
 
-	return node
-}
-
-func (t *Tree) Min() *TreeNode {
-	return t.min(t.root)
-}
-
-func (t *Tree) Max() *TreeNode {
-	node := t.root
-	for node.right != t.sentinal {
-		node = node.right
+	if y != z {
+		z.Item = y.Item
 	}
 
-	return node
+	if y.Color == BLACK {
+		t.deleteFixup(x)
+	}
+
+	t.count--
+
+	return ret
+}
+
+func (t *Tree) deleteFixup(x *Node) {
+	for x != t.root && x.Color == BLACK {
+		if x == x.Parent.Left {
+			w := x.Parent.Right
+			if w.Color == RED {
+				w.Color = BLACK
+				x.Parent.Color = RED
+				t.leftRotate(x.Parent)
+				w = x.Parent.Right
+			}
+			if w.Left.Color == BLACK && w.Right.Color == BLACK {
+				w.Color = RED
+				x = x.Parent
+			} else {
+				if w.Right.Color == BLACK {
+					w.Left.Color = BLACK
+					w.Color = RED
+					t.rightRotate(w)
+					w = x.Parent.Right
+				}
+				w.Color = x.Parent.Color
+				x.Parent.Color = BLACK
+				w.Right.Color = BLACK
+				t.leftRotate(x.Parent)
+				// this is to exit while loop
+				x = t.root
+			}
+		} else { // the code below is has left and right switched from above
+			w := x.Parent.Left
+			if w.Color == RED {
+				w.Color = BLACK
+				x.Parent.Color = RED
+				t.rightRotate(x.Parent)
+				w = x.Parent.Left
+			}
+			if w.Left.Color == BLACK && w.Right.Color == BLACK {
+				w.Color = RED
+				x = x.Parent
+			} else {
+				if w.Left.Color == BLACK {
+					w.Right.Color = BLACK
+					w.Color = RED
+					t.leftRotate(w)
+					w = x.Parent.Left
+				}
+				w.Color = x.Parent.Color
+				x.Parent.Color = BLACK
+				w.Left.Color = BLACK
+				t.rightRotate(x.Parent)
+				x = t.root
+			}
+		}
+	}
+	x.Color = BLACK
 }

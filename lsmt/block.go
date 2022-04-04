@@ -19,19 +19,19 @@ type block struct {
 
 func (b *block) set(key int64, value interface{}) {
 	b.count++
-	b.data.Insert(key, value)
+	b.data.Insert(rbtree.TimestampItem{Time: key, Value: value})
 }
 
 func (b *block) get(key int64) interface{} {
-	return b.data.Find(key).GetValue()
+	return b.data.Search(rbtree.TimestampItem{Time: key}).Item.(rbtree.TimestampItem).Value
 }
 
 func (b *block) getRange(startTime, endTime int64) []interface{} {
-	nodes := b.data.GetRange(startTime, endTime)
-	result := make([]interface{}, len(nodes))
+	items := b.data.GetRange(rbtree.TimestampItem{Time: startTime}, rbtree.TimestampItem{Time: endTime})
+	result := make([]interface{}, len(items))
 
-	for i, node := range nodes {
-		result[i] = node.GetValue()
+	for i, item := range items {
+		result[i] = item.(rbtree.TimestampItem).Value
 	}
 
 	return result
@@ -54,9 +54,9 @@ func (b *block) writeBlock(w io.Writer) (int, error) {
 	valueEncoder := NewEncoder(b.valueType, b.count)
 
 	iter := rbtree.NewTreeIter(b.data)
-	for k, v := iter.Next(); iter.HasNext(); k, v = iter.Next() {
-		timeEncoder.Write(k)
-		if err := valueEncoder.Write(v); err != nil {
+	for item := iter.Next().(rbtree.TimestampItem); iter.HasNext(); item = iter.Next().(rbtree.TimestampItem) {
+		timeEncoder.Write(item.Time)
+		if err := valueEncoder.Write(item.Value); err != nil {
 			return 0, err
 		}
 	}
@@ -146,9 +146,7 @@ func readBlock(reader io.Reader) (*block, error) {
 	tree := rbtree.New()
 	count := 0
 	for {
-		time, value := timeDecoder.Read(), decoder.Read()
-
-		tree.Insert(time, value)
+		tree.Insert(rbtree.TimestampItem{Time: timeDecoder.Read(), Value: decoder.Read()})
 		count++
 
 		if !decoder.Next() || !timeDecoder.Next() {

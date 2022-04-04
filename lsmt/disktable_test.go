@@ -1,8 +1,6 @@
 package lsmt
 
 import (
-	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
@@ -18,12 +16,15 @@ func prepare() {
 		mt.insert(&db.Entry{Key: i, Value: i, Type: db.IntType, Tags: []string{"test"}})
 	}
 
+	if err := os.Mkdir(testOption.WorkDir, 0750); err != nil {
+		panic(err)
+	}
+
 	file, err := os.Create(path.Join(testOption.WorkDir, "0-1000"))
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Println(ioutil.ReadAll(file))
+	defer file.Close()
 	if err := mt.write(file); err != nil {
 		panic(err)
 	}
@@ -36,6 +37,16 @@ func TestDiskTable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	defer func() {
+		if err := dt.Close(); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.RemoveAll(testOption.WorkDir); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	result, err := dt.getRange(20, 40, nil)
 	if err != nil {

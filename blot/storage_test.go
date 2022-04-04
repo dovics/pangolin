@@ -10,7 +10,7 @@ import (
 )
 
 var testOption *Option = &Option{
-	Path: "./bblot",
+	Path: "./test_bblot",
 }
 
 func newTestStorage() (*Storage, error) {
