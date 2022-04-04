@@ -4,7 +4,7 @@ import (
 	"errors"
 	"log"
 	"os"
-	"path/filepath"
+	"path"
 	"strconv"
 	"sync/atomic"
 
@@ -32,10 +32,16 @@ func init() {
 			return nil, err
 		}
 
+		rt, err := NewRemoteTable("test")
+		if err != nil {
+			return nil, err
+		}
+
 		s := &Storage{
 			option: option,
 			mem:    NewMemtable(),
 			disk:   dt,
+			remote: rt,
 		}
 
 		return s, nil
@@ -61,9 +67,9 @@ type Storage struct {
 	isFlashing int32
 	flashTable *memtable
 
-	mem *memtable
-
-	disk *disktable
+	mem    *memtable
+	disk   *disktable
+	remote *remotetable
 }
 
 func (s *Storage) Close() error {
@@ -119,26 +125,43 @@ func (s *Storage) saveToFileIfNeeded() {
 
 	s.flashTable, s.mem = s.mem, NewMemtable()
 
-	filePath := filepath.Join(s.option.WorkDir,
+	filePath := path.Join(s.option.WorkDir,
 		strconv.FormatInt(s.flashTable.minKey, 10)+"-"+strconv.FormatInt(s.flashTable.maxKey, 10))
 	file, err := os.Create(filePath)
 	if err != nil {
 		log.Println("create file error: ", err)
+		return
 	}
 
 	if err := s.flashTable.write(file); err != nil {
 		log.Println("memtable write error: ", err)
+		file.Close()
+		return
 	}
 
 	if err := file.Sync(); err != nil {
 		log.Println("file sync error: ", err)
+		file.Close()
+		return
 	}
 
 	if err := s.disk.AddFile(filePath); err != nil {
 		log.Println("file add error: ", err)
+		file.Close()
+		return
+	}
+
+	if err := file.Close(); err != nil {
+		log.Println("file close error: ", err)
+		return
 	}
 
 	if !atomic.CompareAndSwapInt32(&s.isFlashing, 1, 0) {
+		return
+	}
+
+	if err := s.remote.uploadFile(filePath); err != nil {
+		log.Println("file upload error: ", err)
 		return
 	}
 

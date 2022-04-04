@@ -4,6 +4,7 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/dovics/db"
 )
@@ -24,10 +25,16 @@ func newTestStorage() (*Storage, error) {
 		return nil, err
 	}
 
+	rt, err := NewRemoteTable("test")
+	if err != nil {
+		return nil, err
+	}
+
 	s := &Storage{
 		option: testOption,
 		mem:    NewMemtable(),
 		disk:   dt,
+		remote: rt,
 	}
 
 	return s, nil
@@ -70,4 +77,6 @@ func TestStorage(t *testing.T) {
 	if !reflect.DeepEqual(expectResult, result) {
 		t.Errorf("expect %v, got %v\n", expectResult, result)
 	}
+
+	time.Sleep(10 * time.Second)
 }

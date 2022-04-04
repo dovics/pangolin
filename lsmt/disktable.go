@@ -120,7 +120,6 @@ func (d *disktable) AddFile(p string) error {
 }
 
 func (d *disktable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([]interface{}, error) {
-	fmt.Println(123123123)
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 

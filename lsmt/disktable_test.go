@@ -24,6 +24,7 @@ func prepare() {
 	if err != nil {
 		panic(err)
 	}
+
 	defer file.Close()
 	if err := mt.write(file); err != nil {
 		panic(err)
@@ -60,5 +61,32 @@ func TestDiskTable(t *testing.T) {
 
 	if !reflect.DeepEqual(expectResult, result) {
 		t.Errorf("expect %v, got %v\n", expectResult, result)
+	}
+}
+
+func TestAddFile(t *testing.T) {
+	os.Mkdir(testOption.WorkDir, 0750)
+	defer os.RemoveAll(testOption.WorkDir)
+	dt, err := NewDiskTable(testOption.WorkDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := dt.Close(); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.RemoveAll(testOption.WorkDir); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	if err := dt.AddFile(`test_lsm\0-239`); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(dt.files) != 1 {
+		t.Error("wrong files count")
 	}
 }
