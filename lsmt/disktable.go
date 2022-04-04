@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dovics/db"
+	db "github.com/dovics/pangolin"
 )
 
 func (s *Storage) ReadDiskTableMeta() {
@@ -23,28 +23,13 @@ type disktable struct {
 	files   []*diskFile
 }
 
-func (d *disktable) Close() error {
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
-
-	for _, file := range d.files {
-		if file.data != nil {
-			if err := file.data.Close(); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
 func NewDiskTable(workDir string) (*disktable, error) {
 	entrys, err := os.ReadDir(workDir)
 	if err != nil {
 		return nil, err
 	}
 
-	dt := &disktable{}
+	dt := &disktable{workDir: workDir}
 
 	dt.files = make([]*diskFile, 0, len(entrys))
 	for _, entry := range entrys {
@@ -72,6 +57,21 @@ func NewDiskTable(workDir string) (*disktable, error) {
 	heap.Init(dt)
 
 	return dt, nil
+}
+
+func (d *disktable) Close() error {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	for _, file := range d.files {
+		if file.data != nil {
+			if err := file.data.Close(); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 type diskFile struct {
@@ -164,7 +164,7 @@ func (d *diskFile) getRange(startTime, endTime int64, filter *db.QueryFilter) ([
 			return nil, nil
 		}
 
-		if _, err := d.data.Seek(int64(i.offset), os.SEEK_SET); err != nil {
+		if _, err := d.data.Seek(int64(i.offset), io.SeekCurrent); err != nil {
 			return nil, err
 		}
 

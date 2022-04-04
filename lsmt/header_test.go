@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/dovics/db"
+	db "github.com/dovics/pangolin"
 )
 
 func TestHeader(t *testing.T) {

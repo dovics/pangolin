@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"sync/atomic"
 
-	"github.com/dovics/db"
-	"github.com/dovics/db/compress"
+	db "github.com/dovics/pangolin"
+	"github.com/dovics/pangolin/compress"
 )
 
 func init() {
@@ -164,8 +164,6 @@ func (s *Storage) saveToFileIfNeeded() {
 		log.Println("file upload error: ", err)
 		return
 	}
-
-	return
 }
 
 type Encoder interface {

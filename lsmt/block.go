@@ -5,9 +5,9 @@ import (
 	"errors"
 	"io"
 
-	"github.com/dovics/db"
-	"github.com/dovics/db/compress"
-	"github.com/dovics/db/utils/rbtree"
+	db "github.com/dovics/pangolin"
+	"github.com/dovics/pangolin/compress"
+	"github.com/dovics/pangolin/utils/rbtree"
 )
 
 type block struct {
@@ -22,9 +22,9 @@ func (b *block) set(key int64, value interface{}) {
 	b.data.Insert(rbtree.TimestampItem{Time: key, Value: value})
 }
 
-func (b *block) get(key int64) interface{} {
-	return b.data.Search(rbtree.TimestampItem{Time: key}).Item.(rbtree.TimestampItem).Value
-}
+// func (b *block) get(key int64) interface{} {
+// 	return b.data.Search(rbtree.TimestampItem{Time: key}).Item.(rbtree.TimestampItem).Value
+// }
 
 func (b *block) getRange(startTime, endTime int64) []interface{} {
 	items := b.data.GetRange(rbtree.TimestampItem{Time: startTime}, rbtree.TimestampItem{Time: endTime})

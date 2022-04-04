@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/dovics/db"
+	db "github.com/dovics/pangolin"
 )
 
 type index struct {
@@ -74,7 +74,7 @@ func findHeader(r io.ReadSeeker) error {
 
 	headerOffset := binary.BigEndian.Uint32(buffer)
 
-	if _, err := r.Seek(int64(headerOffset), os.SEEK_SET); err != nil {
+	if _, err := r.Seek(int64(headerOffset), io.SeekStart); err != nil {
 		return err
 	}
 

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/dovics/db"
-	"github.com/dovics/db/utils/rbtree"
+	db "github.com/dovics/pangolin"
+	"github.com/dovics/pangolin/utils/rbtree"
 )
 
 func TestBlock(t *testing.T) {

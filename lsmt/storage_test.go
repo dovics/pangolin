@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dovics/db"
+	db "github.com/dovics/pangolin"
 )
 
 var testOption *Option = &Option{

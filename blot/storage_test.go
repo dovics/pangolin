@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/dovics/db"
+	db "github.com/dovics/pangolin"
 	"go.etcd.io/bbolt"
 )
 

@@ -54,16 +54,16 @@ func (r *remotetable) Close() error {
 	return nil
 }
 
-func (r *remotetable) getRange(start, end int64) {
-	objectCh := r.client.ListObjects(context.Background(), r.bucketName, minio.ListObjectsOptions{})
-	for object := range objectCh {
-		if object.Err != nil {
-			fmt.Println(object.Err)
-			return
-		}
-		fmt.Println(object)
-	}
-}
+// func (r *remotetable) getRange(start, end int64) {
+// 	objectCh := r.client.ListObjects(context.Background(), r.bucketName, minio.ListObjectsOptions{})
+// 	for object := range objectCh {
+// 		if object.Err != nil {
+// 			fmt.Println(object.Err)
+// 			return
+// 		}
+// 		fmt.Println(object)
+// 	}
+// }
 
 func (r *remotetable) uploadFile(p string) error {
 	fmt.Println("uploading")

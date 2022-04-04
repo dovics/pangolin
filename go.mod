@@ -1,4 +1,4 @@
-module github.com/dovics/db
+module github.com/dovics/pangolin
 
 go 1.18
 
