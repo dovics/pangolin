@@ -77,6 +77,15 @@ func (db *DB) GetRange(startTime, endTime int64, filter *QueryFilter) ([]interfa
 	return db.engine.GetRange(startTime, endTime, filter)
 }
 
+func (db *DB) Get(key int64, filter *QueryFilter) (interface{}, error) {
+	result, err := db.engine.GetRange(key, key+1, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	return result[0], nil
+}
+
 func (db *DB) Engine() Engine {
 	return db.engine
 }

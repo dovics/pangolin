@@ -23,16 +23,18 @@ func init() {
 			return nil, errors.New("wrong option type")
 		}
 
-		if err := os.Mkdir(option.WorkDir, 0750); err != nil {
-			return nil, err
+		if _, err := os.Stat(option.WorkDir); os.IsNotExist(err) {
+			if err := os.Mkdir(option.WorkDir, 0750); err != nil {
+				return nil, err
+			}
 		}
 
-		dt, err := NewDiskTable(option.WorkDir)
+		dt, err := NewDiskTable(option.WorkDir, option.DiskfileCount)
 		if err != nil {
 			return nil, err
 		}
 
-		rt, err := NewRemoteTable("test")
+		rt, err := NewRemoteTable(NewRemoteOption(option), dt)
 		if err != nil {
 			return nil, err
 		}
@@ -53,12 +55,14 @@ type Option struct {
 
 	CompressEnable bool
 	MemtableSize   uint64
+	DiskfileCount  int
 }
 
 var defaultOption *Option = &Option{
 	WorkDir:        "./lsm",
 	CompressEnable: true,
-	MemtableSize:   1024,
+	MemtableSize:   1024 * 1024,
+	DiskfileCount:  10,
 }
 
 type Storage struct {
@@ -160,7 +164,7 @@ func (s *Storage) saveToFileIfNeeded() {
 		return
 	}
 
-	if err := s.remote.uploadFile(filePath); err != nil {
+	if err := s.remote.upload(filePath); err != nil {
 		log.Println("file upload error: ", err)
 		return
 	}

@@ -2,7 +2,6 @@ package lsmt
 
 import (
 	"container/heap"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -11,7 +10,10 @@ import (
 	"sync"
 
 	db "github.com/dovics/pangolin"
+	"github.com/dovics/pangolin/utils/lru"
 )
+
+var defaultFileCount int = 10
 
 func (s *Storage) ReadDiskTableMeta() {
 	path.Join(s.option.WorkDir)
@@ -19,19 +21,34 @@ func (s *Storage) ReadDiskTableMeta() {
 
 type disktable struct {
 	mutex   sync.Mutex
+	size    int
 	workDir string
-	files   []*diskFile
+
+	filesIndexMap map[string]int
+	files         []*diskFile
+
+	cache lru.Cache
 }
 
-func NewDiskTable(workDir string) (*disktable, error) {
+func NewDiskTable(workDir string, fileCount int) (*disktable, error) {
+	if fileCount == 0 {
+		fileCount = defaultFileCount
+	}
+
 	entrys, err := os.ReadDir(workDir)
 	if err != nil {
 		return nil, err
 	}
 
-	dt := &disktable{workDir: workDir}
+	dt := &disktable{
+		workDir:       workDir,
+		size:          fileCount,
+		cache:         lru.NewLRUCache(fileCount),
+		filesIndexMap: make(map[string]int, len(entrys)),
+	}
 
 	dt.files = make([]*diskFile, 0, len(entrys))
+	heap.Init(dt)
 	for _, entry := range entrys {
 		fileName := entry.Name()
 		keyScope := strings.Split(fileName, "-")
@@ -46,15 +63,19 @@ func NewDiskTable(workDir string) (*disktable, error) {
 			return nil, err
 		}
 
-		dt.files = append(dt.files,
-			&diskFile{
-				path:   path.Join(workDir, fileName),
-				minKey: int64(minKey),
-				maxKey: int64(maxKey),
-			})
-	}
+		file := &diskFile{
+			t:      dt,
+			path:   path.Join(workDir, fileName),
+			minKey: int64(minKey),
+			maxKey: int64(maxKey),
+		}
 
-	heap.Init(dt)
+		heap.Push(dt, file)
+
+		if err := dt.cache.Put(file.path, file); err != nil {
+			return nil, err
+		}
+	}
 
 	return dt, nil
 }
@@ -65,7 +86,7 @@ func (d *disktable) Close() error {
 
 	for _, file := range d.files {
 		if file.data != nil {
-			if err := file.data.Close(); err != nil {
+			if err := file.Clean(); err != nil {
 				return err
 			}
 		}
@@ -75,6 +96,7 @@ func (d *disktable) Close() error {
 }
 
 type diskFile struct {
+	t      *disktable
 	path   string
 	minKey int64
 	maxKey int64
@@ -85,14 +107,21 @@ type diskFile struct {
 
 func (d *disktable) Len() int           { return len(d.files) }
 func (d *disktable) Less(i, j int) bool { return d.files[i].minKey < d.files[j].minKey }
-func (d *disktable) Swap(i, j int)      { d.files[i], d.files[j] = d.files[j], d.files[i] }
+func (d *disktable) Swap(i, j int) {
+	d.files[i], d.files[j] = d.files[j], d.files[i]
+	d.filesIndexMap[d.files[i].path] = i
+	d.filesIndexMap[d.files[j].path] = j
+}
 
 func (d *disktable) Push(x interface{}) {
-	d.files = append(d.files, x.(*diskFile))
+	file := x.(*diskFile)
+	d.filesIndexMap[file.path] = len(d.files)
+	d.files = append(d.files, file)
 }
 
 func (d *disktable) Pop() interface{} {
 	x := d.files[len(d.files)-1]
+	delete(d.filesIndexMap, x.path)
 	d.files = d.files[0 : len(d.files)-1]
 	return x
 }
@@ -114,7 +143,17 @@ func (d *disktable) AddFile(p string) error {
 		return err
 	}
 
-	heap.Push(d, &diskFile{path: p, minKey: int64(minKey), maxKey: int64(maxKey)})
+	file := &diskFile{
+		t:      d,
+		path:   p,
+		minKey: int64(minKey),
+		maxKey: int64(maxKey),
+	}
+
+	heap.Push(d, file)
+	if err := d.cache.Put(file.path, file); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -142,6 +181,7 @@ func (d *disktable) getRange(startTime, endTime int64, filter *db.QueryFilter) (
 }
 
 func (d *diskFile) getRange(startTime, endTime int64, filter *db.QueryFilter) ([]interface{}, error) {
+	d.t.cache.Visit(d.path)
 	if d.data == nil {
 		file, err := os.Open(d.path)
 		if err != nil {
@@ -159,12 +199,11 @@ func (d *diskFile) getRange(startTime, endTime int64, filter *db.QueryFilter) ([
 			return nil, nil
 		}
 
-		fmt.Println(i)
 		if i.max < uint32(startTime) || i.min > uint32(endTime) {
 			return nil, nil
 		}
 
-		if _, err := d.data.Seek(int64(i.offset), io.SeekCurrent); err != nil {
+		if _, err := d.data.Seek(int64(i.offset), io.SeekStart); err != nil {
 			return nil, err
 		}
 
@@ -211,6 +250,17 @@ func (d *diskFile) readIndex() (err error) {
 
 	if d.indexes, err = readHeader(d.data); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (d *diskFile) Clean() error {
+	heap.Remove(d.t, d.t.filesIndexMap[d.path])
+	if d.data != nil {
+		if err := d.data.Close(); err != nil {
+			return err
+		}
 	}
 
 	return nil

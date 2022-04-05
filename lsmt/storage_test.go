@@ -13,6 +13,7 @@ var testOption *Option = &Option{
 	WorkDir:        "./test_lsm",
 	CompressEnable: true,
 	MemtableSize:   1024,
+	DiskfileCount:  10,
 }
 
 func newTestStorage() (*Storage, error) {
@@ -20,12 +21,12 @@ func newTestStorage() (*Storage, error) {
 		return nil, err
 	}
 
-	dt, err := NewDiskTable(testOption.WorkDir)
+	dt, err := NewDiskTable(testOption.WorkDir, testOption.DiskfileCount)
 	if err != nil {
 		return nil, err
 	}
 
-	rt, err := NewRemoteTable("test")
+	rt, err := NewRemoteTable(NewRemoteOption(testOption), dt)
 	if err != nil {
 		return nil, err
 	}
