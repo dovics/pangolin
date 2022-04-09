@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	db "github.com/dovics/pangolin"
-	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
@@ -37,7 +36,7 @@ func NewRemoteOption(o *Option) *RemoteOption {
 		AccessKeyID:     "wangrushen",
 		SecretAccessKey: "wangrushen",
 		UseSSL:          false,
-		BucketName:      uuid.NewString(),
+		BucketName:      o.uuid.String(),
 		WorkDir:         o.WorkDir,
 	}
 }

@@ -9,15 +9,15 @@ import (
 
 type Option struct {
 	UUID   string
-	engine string
+	Engine string
 
-	engineOption interface{}
+	EngineOption interface{}
 }
 
 func DefaultOption(uuid string) *Option {
 	return &Option{
 		UUID:   uuid,
-		engine: "lsm",
+		Engine: "lsm",
 	}
 }
 
@@ -39,7 +39,7 @@ func OpenDB(option *Option) (*DB, error) {
 		return nil, errors.New("please provide the correct uuid")
 	}
 
-	engine, err := engines[option.engine](option.engineOption)
+	engine, err := engines[option.Engine](UUID, option.EngineOption)
 	if err != nil {
 		return nil, err
 	}
@@ -88,4 +88,8 @@ func (db *DB) Get(key int64, filter *QueryFilter) (interface{}, error) {
 
 func (db *DB) Engine() Engine {
 	return db.engine
+}
+
+func (db *DB) Close() error {
+	return db.engine.Close()
 }

@@ -10,18 +10,21 @@ import (
 
 	db "github.com/dovics/pangolin"
 	"github.com/dovics/pangolin/compress"
+	"github.com/google/uuid"
 )
 
 func init() {
-	db.Register("lsm", func(o interface{}) (db.Engine, error) {
+	db.Register("lsm", func(uuid uuid.UUID, o interface{}) (db.Engine, error) {
 		if o == nil {
-			o = defaultOption
+			o = DefaultOption
 		}
 
 		option, ok := o.(*Option)
 		if !ok {
 			return nil, errors.New("wrong option type")
 		}
+
+		option.uuid = uuid
 
 		if _, err := os.Stat(option.WorkDir); os.IsNotExist(err) {
 			if err := os.Mkdir(option.WorkDir, 0750); err != nil {
@@ -51,6 +54,7 @@ func init() {
 }
 
 type Option struct {
+	uuid    uuid.UUID
 	WorkDir string
 
 	CompressEnable bool
@@ -58,7 +62,7 @@ type Option struct {
 	DiskfileCount  int
 }
 
-var defaultOption *Option = &Option{
+var DefaultOption *Option = &Option{
 	WorkDir:        "./lsm",
 	CompressEnable: true,
 	MemtableSize:   1024 * 1024,
@@ -131,6 +135,8 @@ func (s *Storage) saveToFileIfNeeded() {
 
 	filePath := path.Join(s.option.WorkDir,
 		strconv.FormatInt(s.flashTable.minKey, 10)+"-"+strconv.FormatInt(s.flashTable.maxKey, 10))
+	log.Printf("save %s\n", filePath)
+
 	file, err := os.Create(filePath)
 	if err != nil {
 		log.Println("create file error: ", err)

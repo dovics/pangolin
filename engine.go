@@ -2,6 +2,8 @@ package pangolin
 
 import (
 	"sync"
+
+	"github.com/google/uuid"
 )
 
 var (
@@ -9,7 +11,7 @@ var (
 	engines   = make(map[string]NewEngineFunc)
 )
 
-type NewEngineFunc func(option interface{}) (Engine, error)
+type NewEngineFunc func(uuid uuid.UUID, o interface{}) (Engine, error)
 
 func Register(name string, f NewEngineFunc) {
 	enginesMu.Lock()
@@ -28,4 +30,5 @@ func Register(name string, f NewEngineFunc) {
 type Engine interface {
 	Insert(*Entry) error
 	GetRange(startTime, endTime int64, filter *QueryFilter) ([]interface{}, error)
+	Close() error
 }

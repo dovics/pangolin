@@ -8,11 +8,12 @@ import (
 	"log"
 
 	db "github.com/dovics/pangolin"
+	"github.com/google/uuid"
 	"go.etcd.io/bbolt"
 )
 
 func init() {
-	db.Register("blot", func(o interface{}) (db.Engine, error) {
+	db.Register("blot", func(uuid uuid.UUID, o interface{}) (db.Engine, error) {
 		if o == nil {
 			o = defaultOption
 		}
@@ -168,4 +169,8 @@ func (s *Storage) GetRange(startTime, endTime int64, filter *db.QueryFilter) ([]
 	}
 
 	return result, nil
+}
+
+func (s *Storage) Close() error {
+	return s.db.Close()
 }

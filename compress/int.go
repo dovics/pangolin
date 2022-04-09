@@ -64,10 +64,34 @@ func (e *IntegerEncoder) Reset() {
 
 // Write encodes v to the underlying buffers.
 func (e *IntegerEncoder) Write(value interface{}) error {
-	v, ok := value.(int64)
-	if !ok {
+	var v int64
+	switch f := value.(type) {
+	case int:
+		v = int64(f)
+	case int8:
+		v = int64(f)
+	case int16:
+		v = int64(f)
+	case int32:
+		v = int64(f)
+	case int64:
+		v = f
+
+	case uint:
+		v = int64(f)
+	case uint8:
+		v = int64(f)
+	case uint16:
+		v = int64(f)
+	case uint32:
+		v = int64(f)
+	case uintptr:
+		v = int64(f)
+
+	default:
 		return errors.New("integerEncoder wrong type")
 	}
+
 	// Delta-encode each value as it's written.  This happens before
 	// ZigZagEncoding because the deltas could be negative.
 	delta := v - e.prev

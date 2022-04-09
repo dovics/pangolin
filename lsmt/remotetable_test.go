@@ -7,7 +7,9 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strconv"
 	"testing"
+	"time"
 )
 
 func (rt *remotetable) prepare(start, end int64) {
@@ -125,5 +127,18 @@ func TestGetRange(t *testing.T) {
 
 	if !reflect.DeepEqual(expectResult, result) {
 		t.Errorf("expect %v, got %v\n", expectResult, result)
+	}
+}
+
+func TestParseObjectKey(t *testing.T) {
+	start, end := time.Now().UnixMicro(), time.Now().UnixMicro()
+	key := strconv.FormatInt(start, 10) + "-" + strconv.FormatInt(end, 10)
+	file, err := parseObjectKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if file.end != end || file.start != start {
+		t.Errorf("wrong parse result, expect: start(%d) end(%d), got start(%d) end(%d)\n", start, end, file.end, file.start)
 	}
 }
