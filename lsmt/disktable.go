@@ -49,16 +49,10 @@ func NewDiskTable(workDir string, fileCount int) (*disktable, error) {
 
 	dt.files = make([]*diskFile, 0, len(entrys))
 	heap.Init(dt)
+
 	for _, entry := range entrys {
 		fileName := entry.Name()
-		keyScope := strings.Split(fileName, "-")
-
-		minKey, err := strconv.Atoi(keyScope[0])
-		if err != nil {
-			return nil, err
-		}
-
-		maxKey, err := strconv.Atoi(keyScope[1])
+		minKey, maxKey, err := parseFileName(fileName)
 		if err != nil {
 			return nil, err
 		}
@@ -66,8 +60,8 @@ func NewDiskTable(workDir string, fileCount int) (*disktable, error) {
 		file := &diskFile{
 			t:      dt,
 			path:   path.Join(workDir, fileName),
-			minKey: int64(minKey),
-			maxKey: int64(maxKey),
+			minKey: minKey,
+			maxKey: maxKey,
 		}
 
 		heap.Push(dt, file)
@@ -130,15 +124,7 @@ func (d *disktable) AddFile(p string) error {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	fileName := path.Base(p)
-	keyScope := strings.Split(fileName, "-")
-
-	minKey, err := strconv.Atoi(keyScope[0])
-	if err != nil {
-		return err
-	}
-
-	maxKey, err := strconv.Atoi(keyScope[1])
+	minKey, maxKey, err := parseFileName(path.Base(p))
 	if err != nil {
 		return err
 	}
@@ -146,8 +132,8 @@ func (d *disktable) AddFile(p string) error {
 	file := &diskFile{
 		t:      d,
 		path:   p,
-		minKey: int64(minKey),
-		maxKey: int64(maxKey),
+		minKey: minKey,
+		maxKey: maxKey,
 	}
 
 	heap.Push(d, file)
@@ -264,4 +250,19 @@ func (d *diskFile) Clean() error {
 	}
 
 	return nil
+}
+
+func parseFileName(filename string) (int64, int64, error) {
+	keyScope := strings.Split(filename, "-")
+	start, err := strconv.ParseInt(keyScope[0], 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	end, err := strconv.ParseInt(keyScope[1], 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return start, end, nil
 }

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log"
 	"path"
-	"strconv"
-	"strings"
 
 	db "github.com/dovics/pangolin"
 	"github.com/minio/minio-go/v7"
@@ -148,21 +146,13 @@ type remoteFile struct {
 }
 
 func parseObjectKey(key string) (*remoteFile, error) {
-	keyScope := strings.Split(key, "-")
-
-	start, err := strconv.Atoi(keyScope[0])
-	if err != nil {
-		return nil, err
-	}
-
-	end, err := strconv.Atoi(keyScope[1])
+	start, end, err := parseFileName(key)
 	if err != nil {
 		return nil, err
 	}
 
 	return &remoteFile{
-		name:  key,
-		start: int64(start),
-		end:   int64(end),
+		start: start, end: end,
+		name: key,
 	}, nil
 }
