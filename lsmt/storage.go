@@ -32,6 +32,16 @@ func init() {
 			}
 		}
 
+		wal, err := NewWAL(option.WalPath)
+		if err != nil {
+			return nil, err
+		}
+
+		mt, err := wal.Load()
+		if err != nil {
+			return nil, err
+		}
+
 		dt, err := NewDiskTable(option.WorkDir, option.DiskfileCount)
 		if err != nil {
 			return nil, err
@@ -44,7 +54,7 @@ func init() {
 
 		s := &Storage{
 			option: option,
-			mem:    NewMemtable(),
+			mem:    mt,
 			disk:   dt,
 			remote: rt,
 		}
@@ -54,9 +64,9 @@ func init() {
 }
 
 type Option struct {
-	uuid    uuid.UUID
-	WorkDir string
-
+	uuid           uuid.UUID
+	WorkDir        string
+	WalPath        string
 	CompressEnable bool
 	MemtableSize   uint64
 	DiskfileCount  int
@@ -64,6 +74,7 @@ type Option struct {
 
 var DefaultOption *Option = &Option{
 	WorkDir:        "./lsm",
+	WalPath:        "./wal",
 	CompressEnable: true,
 	MemtableSize:   1024 * 1024,
 	DiskfileCount:  10,

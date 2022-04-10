@@ -11,6 +11,7 @@ import (
 
 var testOption *Option = &Option{
 	WorkDir:        "./test_lsm",
+	WalPath:        "./test_wal",
 	CompressEnable: true,
 	MemtableSize:   1024,
 	DiskfileCount:  10,
@@ -18,6 +19,16 @@ var testOption *Option = &Option{
 
 func newTestStorage() (*Storage, error) {
 	if err := os.Mkdir(testOption.WorkDir, 0750); err != nil {
+		return nil, err
+	}
+
+	wal, err := NewWAL(testOption.WalPath)
+	if err != nil {
+		return nil, err
+	}
+
+	mt, err := wal.Load()
+	if err != nil {
 		return nil, err
 	}
 
@@ -33,7 +44,7 @@ func newTestStorage() (*Storage, error) {
 
 	s := &Storage{
 		option: testOption,
-		mem:    NewMemtable(),
+		mem:    mt,
 		disk:   dt,
 		remote: rt,
 	}
