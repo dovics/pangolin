@@ -2,6 +2,7 @@ package lsmt
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"path"
@@ -28,15 +29,19 @@ type RemoteOption struct {
 	WorkDir    string
 }
 
-func NewRemoteOption(o *Option) *RemoteOption {
+func NewRemoteOption(o *Option) (*RemoteOption, error) {
+	if len(o.MinioEndpoint) == 0 || len(o.MinioAccessKeyID) == 0 || len(o.MinioSecretAccessKey) == 0 {
+		return nil, errors.New("missing minio config")
+	}
+
 	return &RemoteOption{
-		Endpoint:        "192.168.0.251:9000",
-		AccessKeyID:     "wangrushen",
-		SecretAccessKey: "wangrushen",
-		UseSSL:          false,
+		Endpoint:        o.MinioEndpoint,
+		AccessKeyID:     o.MinioAccessKeyID,
+		SecretAccessKey: o.MinioSecretAccessKey,
+		UseSSL:          o.MinioUseSSL,
 		BucketName:      o.uuid.String(),
 		WorkDir:         o.WorkDir,
-	}
+	}, nil
 }
 
 func NewRemoteTable(option *RemoteOption, dt *disktable) (*remotetable, error) {

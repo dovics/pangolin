@@ -85,8 +85,13 @@ func (s *FloatEncoder) Flush() {
 
 // Write encodes v to the underlying buffer.
 func (s *FloatEncoder) Write(value interface{}) error {
-	v, ok := value.(float64)
-	if !ok {
+	var v float64
+	switch f := value.(type) {
+	case float32:
+		v = float64(f)
+	case float64:
+		v = f
+	default:
 		s.err = fmt.Errorf("floatEncoder wrong type")
 		return s.err
 	}

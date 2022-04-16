@@ -27,7 +27,12 @@ func (rt *remotetable) prepare(start, end int64) {
 }
 
 func TestNewRemoteTable(t *testing.T) {
-	rt, err := NewRemoteTable(NewRemoteOption(testOption), nil)
+	remoteOption, err := NewRemoteOption(testOption)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rt, err := NewRemoteTable(remoteOption, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +43,12 @@ func TestNewRemoteTable(t *testing.T) {
 }
 
 func TestUploadAndDownload(t *testing.T) {
-	rt, err := NewRemoteTable(NewRemoteOption(testOption), nil)
+	remoteOption, err := NewRemoteOption(testOption)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rt, err := NewRemoteTable(remoteOption, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +112,12 @@ func TestGetRange(t *testing.T) {
 		panic(err)
 	}
 
-	rt, err := NewRemoteTable(NewRemoteOption(testOption), dt)
+	remoteOption, err := NewRemoteOption(testOption)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rt, err := NewRemoteTable(remoteOption, dt)
 	if err != nil {
 		t.Fatal(err)
 	}

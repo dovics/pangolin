@@ -15,6 +15,11 @@ var testOption *Option = &Option{
 	CompressEnable: true,
 	MemtableSize:   1024,
 	DiskfileCount:  10,
+
+	MinioEndpoint:        "192.168.0.251:9000",
+	MinioAccessKeyID:     "wangrushen",
+	MinioSecretAccessKey: "wangrushen",
+	MinioUseSSL:          false,
 }
 
 func newTestStorage() (*Storage, error) {
@@ -37,7 +42,12 @@ func newTestStorage() (*Storage, error) {
 		return nil, err
 	}
 
-	rt, err := NewRemoteTable(NewRemoteOption(testOption), dt)
+	remoteOption, err := NewRemoteOption(testOption)
+	if err != nil {
+		return nil, err
+	}
+
+	rt, err := NewRemoteTable(remoteOption, dt)
 	if err != nil {
 		return nil, err
 	}

@@ -47,7 +47,12 @@ func init() {
 			return nil, err
 		}
 
-		rt, err := NewRemoteTable(NewRemoteOption(option), dt)
+		remoteOption, err := NewRemoteOption(option)
+		if err != nil {
+			return nil, err
+		}
+
+		rt, err := NewRemoteTable(remoteOption, dt)
 		if err != nil {
 			return nil, err
 		}
@@ -70,6 +75,11 @@ type Option struct {
 	CompressEnable bool
 	MemtableSize   uint64
 	DiskfileCount  int
+
+	MinioEndpoint        string
+	MinioAccessKeyID     string
+	MinioSecretAccessKey string
+	MinioUseSSL          bool
 }
 
 var DefaultOption *Option = &Option{
@@ -78,6 +88,11 @@ var DefaultOption *Option = &Option{
 	CompressEnable: true,
 	MemtableSize:   1024 * 1024,
 	DiskfileCount:  10,
+
+	MinioEndpoint:        "192.168.0.251:9000",
+	MinioAccessKeyID:     "wangrushen",
+	MinioSecretAccessKey: "wangrushen",
+	MinioUseSSL:          false,
 }
 
 type Storage struct {
