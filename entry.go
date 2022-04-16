@@ -7,13 +7,17 @@ import (
 )
 
 type Entry struct {
-	Key   int64
-	Value interface{}
-	Type  ValueType
-	Tags  []string
+	KV
+	Type ValueType
+	Tags []string
 }
 
 type ValueType int
+
+type KV struct {
+	Key   int64
+	Value interface{}
+}
 
 const (
 	UnknownType ValueType = iota

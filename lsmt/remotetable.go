@@ -109,8 +109,8 @@ func (r *remotetable) download(name string) error {
 	return nil
 }
 
-func (r *remotetable) getRange(start, end int64, filter *db.QueryFilter) ([]interface{}, error) {
-	result := []interface{}{}
+func (r *remotetable) getRange(start, end int64, filter *db.QueryFilter) ([]db.KV, error) {
+	result := []db.KV{}
 	objectCh := r.client.ListObjects(context.Background(), r.option.BucketName, minio.ListObjectsOptions{})
 	for object := range objectCh {
 		if object.Err != nil {

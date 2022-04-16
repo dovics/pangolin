@@ -91,8 +91,8 @@ func (s *Storage) Insert(e *db.Entry) error {
 	return nil
 }
 
-func (s *Storage) GetRange(startTime, endTime int64, filter *db.QueryFilter) ([]interface{}, error) {
-	result := []interface{}{}
+func (s *Storage) GetRange(startTime, endTime int64, filter *db.QueryFilter) ([]db.KV, error) {
+	result := []db.KV{}
 
 	rangeBucket := func(name []byte, b *bbolt.Bucket) error {
 		if b == nil {
@@ -110,13 +110,13 @@ func (s *Storage) GetRange(startTime, endTime int64, filter *db.QueryFilter) ([]
 				if f, ok := s.unmarshalFunc[string(name)]; ok {
 					value, err := f(v)
 					if err == nil {
-						result = append(result, value)
+						result = append(result, db.KV{Key: int64(key), Value: value})
 						return nil
 					}
 					log.Println("data unmarshal error: ", err)
 				}
 
-				result = append(result, v)
+				result = append(result, db.KV{Key: int64(key), Value: v})
 			}
 
 			return nil

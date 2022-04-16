@@ -53,7 +53,7 @@ func (m *memtable) insert(e *db.Entry) error {
 	return nil
 }
 
-func (m *memtable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([]interface{}, error) {
+func (m *memtable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([]db.KV, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
@@ -61,7 +61,7 @@ func (m *memtable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([
 		return nil, nil
 	}
 
-	result := []interface{}{}
+	result := []db.KV{}
 	if filter != nil && filter.Type != db.UnknownType {
 		for i, block := range m.blocks[filter.Type] {
 			if !db.ContainTags(i, filter.Tags) {

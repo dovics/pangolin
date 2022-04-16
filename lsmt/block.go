@@ -26,12 +26,13 @@ func (b *block) set(key int64, value interface{}) {
 // 	return b.data.Search(rbtree.TimestampItem{Time: key}).Item.(rbtree.TimestampItem).Value
 // }
 
-func (b *block) getRange(startTime, endTime int64) []interface{} {
+func (b *block) getRange(startTime, endTime int64) []db.KV {
 	items := b.data.GetRange(rbtree.TimestampItem{Time: startTime}, rbtree.TimestampItem{Time: endTime})
-	result := make([]interface{}, len(items))
+	result := make([]db.KV, len(items))
 
 	for i, item := range items {
-		result[i] = item.(rbtree.TimestampItem).Value
+		timeStampItem := item.(rbtree.TimestampItem)
+		result[i] = db.KV{Key: timeStampItem.Time, Value: timeStampItem.Value}
 	}
 
 	return result

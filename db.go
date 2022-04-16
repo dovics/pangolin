@@ -62,7 +62,7 @@ func (db *DB) Insert(time int64, value interface{}) error {
 		t = StringType
 	}
 
-	return db.engine.Insert(&Entry{Key: time, Value: value, Type: t})
+	return db.engine.Insert(&Entry{KV: KV{Key: time, Value: value}, Type: t})
 }
 
 func (db *DB) InsertEntry(e *Entry) error {
@@ -73,7 +73,7 @@ func (db *DB) InsertEntry(e *Entry) error {
 	return db.engine.Insert(e)
 }
 
-func (db *DB) GetRange(startTime, endTime int64, filter *QueryFilter) ([]interface{}, error) {
+func (db *DB) GetRange(startTime, endTime int64, filter *QueryFilter) ([]KV, error) {
 	return db.engine.GetRange(startTime, endTime, filter)
 }
 

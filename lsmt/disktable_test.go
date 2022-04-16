@@ -14,7 +14,7 @@ func (dt *disktable) prepare(start, end int64) {
 	mt := NewMemtable()
 
 	for i := start; i < end; i++ {
-		mt.insert(&db.Entry{Key: i, Value: i, Type: db.IntType, Tags: []string{"test"}})
+		mt.insert(&db.Entry{KV: db.KV{Key: i, Value: i}, Type: db.IntType, Tags: []string{"test"}})
 	}
 
 	filePath := path.Join(dt.workDir, fmt.Sprintf("%d-%d", start, end))
@@ -59,9 +59,9 @@ func TestDiskTable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectResult := make([]interface{}, 20)
+	expectResult := make([]db.KV, 20)
 	for i := 20; i < 40; i++ {
-		expectResult[i-20] = int64(i)
+		expectResult[i-20] = db.KV{Key: int64(i), Value: int64(i)}
 	}
 
 	if !reflect.DeepEqual(expectResult, result) {
@@ -87,7 +87,7 @@ func TestAddFile(t *testing.T) {
 		}
 	}()
 
-	if err := dt.AddFile(`test_lsm\0-239`); err != nil {
+	if err := dt.AddFile("test_lsm/0-239"); err != nil {
 		t.Fatal(err)
 	}
 

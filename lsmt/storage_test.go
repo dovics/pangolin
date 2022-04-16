@@ -70,6 +70,10 @@ func clean(s *Storage) {
 	if err := os.RemoveAll(testOption.WorkDir); err != nil {
 		panic(err)
 	}
+
+	if err := os.Remove(testOption.WalPath); err != nil {
+		panic(err)
+	}
 }
 
 func TestStorage(t *testing.T) {
@@ -80,7 +84,7 @@ func TestStorage(t *testing.T) {
 	defer clean(s)
 
 	for i := int64(0); i < 1000; i++ {
-		err := s.Insert(&db.Entry{Key: i, Value: i, Type: db.IntType, Tags: []string{"test"}})
+		err := s.Insert(&db.Entry{KV: db.KV{Key: i, Value: i}, Type: db.IntType, Tags: []string{"test"}})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -91,9 +95,9 @@ func TestStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectResult := make([]interface{}, 20)
+	expectResult := make([]db.KV, 20)
 	for i := 20; i < 40; i++ {
-		expectResult[i-20] = int64(i)
+		expectResult[i-20] = db.KV{Key: int64(i), Value: int64(i)}
 	}
 
 	if !reflect.DeepEqual(expectResult, result) {

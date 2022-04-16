@@ -95,6 +95,7 @@ func (s *FloatEncoder) Write(value interface{}) error {
 		s.err = fmt.Errorf("floatEncoder wrong type")
 		return s.err
 	}
+
 	// Only allow NaN as a sentinel value
 	if math.IsNaN(v) && !s.finished {
 		s.err = fmt.Errorf("unsupported value: NaN")

@@ -144,11 +144,11 @@ func (d *disktable) AddFile(p string) error {
 	return nil
 }
 
-func (d *disktable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([]interface{}, error) {
+func (d *disktable) getRange(startTime, endTime int64, filter *db.QueryFilter) ([]db.KV, error) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
-	result := []interface{}{}
+	result := []db.KV{}
 
 	for _, file := range d.files {
 		if file.minKey > endTime || file.maxKey < startTime {
@@ -166,7 +166,7 @@ func (d *disktable) getRange(startTime, endTime int64, filter *db.QueryFilter) (
 	return result, nil
 }
 
-func (d *diskFile) getRange(startTime, endTime int64, filter *db.QueryFilter) ([]interface{}, error) {
+func (d *diskFile) getRange(startTime, endTime int64, filter *db.QueryFilter) ([]db.KV, error) {
 	d.t.cache.Visit(d.path)
 	if d.data == nil {
 		file, err := os.Open(d.path)
@@ -180,7 +180,7 @@ func (d *diskFile) getRange(startTime, endTime int64, filter *db.QueryFilter) ([
 		}
 	}
 
-	check := func(i *index) ([]interface{}, error) {
+	check := func(i *index) ([]db.KV, error) {
 		if filter != nil && !db.ContainTags(i.index, filter.Tags) {
 			return nil, nil
 		}
@@ -201,7 +201,7 @@ func (d *diskFile) getRange(startTime, endTime int64, filter *db.QueryFilter) ([
 		return b.getRange(startTime, endTime), nil
 	}
 
-	result := []interface{}{}
+	result := []db.KV{}
 	if filter != nil && filter.Type != db.UnknownType {
 		for _, index := range d.indexes[filter.Type] {
 			r, err := check(index)

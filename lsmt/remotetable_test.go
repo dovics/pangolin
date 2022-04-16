@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	db "github.com/dovics/pangolin"
 )
 
 func (rt *remotetable) prepare(start, end int64) {
@@ -135,9 +137,9 @@ func TestGetRange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectResult := make([]interface{}, 20)
+	expectResult := make([]db.KV, 20)
 	for i := 20; i < 40; i++ {
-		expectResult[i-20] = int64(i)
+		expectResult[i-20] = db.KV{Key: int64(i), Value: int64(i)}
 	}
 
 	if !reflect.DeepEqual(expectResult, result) {

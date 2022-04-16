@@ -29,6 +29,6 @@ func Register(name string, f NewEngineFunc) {
 
 type Engine interface {
 	Insert(*Entry) error
-	GetRange(startTime, endTime int64, filter *QueryFilter) ([]interface{}, error)
+	GetRange(startTime, endTime int64, filter *QueryFilter) ([]KV, error)
 	Close() error
 }

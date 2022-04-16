@@ -119,8 +119,8 @@ func (s *Storage) Insert(e *db.Entry) error {
 	return nil
 }
 
-func (s *Storage) GetRange(startTime, endTime int64, filter *db.QueryFilter) ([]interface{}, error) {
-	result := []interface{}{}
+func (s *Storage) GetRange(startTime, endTime int64, filter *db.QueryFilter) ([]db.KV, error) {
+	result := []db.KV{}
 
 	memResult, err := s.mem.getRange(startTime, endTime, filter)
 	if err != nil {
